@@ -3,7 +3,7 @@ import pandas as pd
 
 from src.air_quality import fetch_air_quality
 from src.model import train_pm25_model
-from src.chat import ask_api_model, ask_local_model
+from src.chat import ask_local_model, ask_science_assistant
 
 st.set_page_config(page_title="AirSense AI", page_icon="🌍", layout="wide")
 
@@ -18,11 +18,10 @@ with st.sidebar:
     st.caption("These coordinates are an editable demo default. Change them for another location.")
     st.divider()
     st.header("AI assistant")
-    chat_mode = st.radio("Choose chatbot", ["API model", "Local model (Ollama)"])
-    if chat_mode == "API model":
-        st.caption("Needs an API key in your local .env file.")
-    else:
-        st.caption("Needs Ollama installed and a model downloaded.")
+    chat_mode = st.radio(
+    "Choose assistant",
+    ["Scientific Q&A (Free)", "Gemma AI (Local Mac)"]
+)
 
 @st.cache_data(ttl=900, show_spinner=False)
 def load_data(lat, lon):
