@@ -1,0 +1,415 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+}
+
+canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+}
+
+#atmosphere {
+    z-index: 0;
+}
+
+#grain {
+    z-index: 1;
+    opacity: .13;
+    mix-blend-mode: screen;
+}
+</style>
+</head>
+<body>
+<canvas id="atmosphere"></canvas>
+<canvas id="grain"></canvas>
+
+<script>
+(() => {
+    const canvas = document.getElementById("atmosphere");
+    const ctx = canvas.getContext("2d", { alpha: true });
+    const grainCanvas = document.getElementById("grain");
+    const grainCtx = grainCanvas.getContext("2d", { alpha: true });
+
+    const reducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let particles = [];
+    let time = 0;
+    let animationFrame;
+    let lastFrame = 0;
+
+    const pointer = { x: -1000, y: -1000 };
+    const colors = [
+        [119, 213, 211],
+        [241, 132, 112],
+        [223, 193, 143],
+        [154, 173, 207]
+    ];
+
+    const random = (min, max) =>
+        min + Math.random() * (max - min);
+
+    class Particle {
+        constructor(initial = false) {
+            this.reset(initial);
+        }
+
+        reset(initial = false) {
+            this.x = random(0, width);
+            this.y = initial ? random(0, height) : height + 30;
+            this.vx = random(-.15, .15);
+            this.vy = random(-.35, -.05);
+            this.size = random(.5, 2.1);
+            this.phase = random(0, Math.PI * 2);
+            this.speed = random(.3, 1.1);
+            this.color = colors[
+                Math.floor(Math.random() * colors.length)
+            ];
+            this.alpha = random(.15, .7);
+            this.depth = random(.25, 1);
+            this.seed = random(0, 1000);
+        }
+
+        update(dt) {
+            const scale = dt / 16.67;
+            const nx = this.x / width;
+            const ny = this.y / height;
+
+            // Smooth atmospheric flow field
+            const angle =
+                Math.sin(ny * 5.2 + time * .00027 + this.seed) * .8 +
+                Math.cos(nx * 4.3 - time * .00019) * .5 +
+                Math.sin((nx + ny) * 3 + time * .00015) * .35;
+
+            this.vx += Math.cos(angle) * .008 * this.depth * scale;
+            this.vy += Math.sin(angle) * .006 * this.depth * scale - .003;
+
+            // Gentle pointer response
+            const dx = this.x - pointer.x;
+            const dy = this.y - pointer.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 150 && dist > 0) {
+                const force = (150 - dist) / 150;
+                this.vx += dx / dist * force * .025 * scale;
+                this.vy += dy / dist * force * .025 * scale;
+            }
+
+            this.vx *= .985;
+            this.vy *= .985;
+
+            this.x += this.vx * scale * this.speed;
+            this.y += this.vy * scale * this.speed;
+
+            this.phase += .012 * scale;
+
+            if (
+                this.y < -40 ||
+                this.x < -40 ||
+                this.x > width + 40
+            ) {
+                this.reset();
+            }
+        }
+
+        draw() {
+            const pulse = .75 + Math.sin(this.phase) * .25;
+            const alpha = this.alpha * pulse;
+
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size * this.depth, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${this.color.join(",")},${alpha})`;
+            ctx.fill();
+
+            if (this.size > 1.5) {
+                const glow = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.size * 8
+                );
+
+                glow.addColorStop(
+                    0,
+                    `rgba(${this.color.join(",")},${alpha * .3})`
+                );
+                glow.addColorStop(1, "rgba(0,0,0,0)");
+
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 1.6);
+        width = window.innerWidth;
+        height = window.innerHeight;
+
+        [canvas, grainCanvas].forEach(c => {
+            c.width = Math.floor(width * dpr);
+            c.height = Math.floor(height * dpr);
+            c.style.width = width + "px";
+            c.style.height = height + "px";
+        });
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        grainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const count = Math.min(
+            190,
+            Math.max(65, Math.floor(width * height / 8500))
+        );
+
+        particles = Array.from(
+            { length: count },
+            () => new Particle(true)
+        );
+
+        drawGrain();
+    }
+
+    // Subtle atmospheric film grain
+    function drawGrain() {
+        grainCtx.clearRect(0, 0, width, height);
+
+        const tile = document.createElement("canvas");
+        tile.width = 180;
+        tile.height = 180;
+        const tctx = tile.getContext("2d");
+        const data = tctx.createImageData(180, 180);
+
+        for (let i = 0; i < data.data.length; i += 4) {
+            const v = Math.random() * 255;
+            data.data[i] = v;
+            data.data[i + 1] = v;
+            data.data[i + 2] = v;
+            data.data[i + 3] = 20;
+        }
+
+        tctx.putImageData(data, 0, 0);
+        const pattern = grainCtx.createPattern(tile, "repeat");
+        grainCtx.fillStyle = pattern;
+        grainCtx.fillRect(0, 0, width, height);
+    }
+
+    function drawCurrents() {
+        // Deep atmospheric light fields
+        const fields = [
+            {
+                x: width * (.18 + Math.sin(time * .00012) * .035),
+                y: height * .25,
+                radius: Math.max(width, height) * .46,
+                color: "rgba(43,139,157,.12)"
+            },
+            {
+                x: width * (.82 + Math.cos(time * .0001) * .04),
+                y: height * .42,
+                radius: Math.max(width, height) * .39,
+                color: "rgba(222,104,96,.105)"
+            },
+            {
+                x: width * .55,
+                y: height * (.92 + Math.sin(time * .00016) * .03),
+                radius: Math.max(width, height) * .42,
+                color: "rgba(85,105,173,.11)"
+            }
+        ];
+
+        fields.forEach(f => {
+            const g = ctx.createRadialGradient(
+                f.x, f.y, 0,
+                f.x, f.y, f.radius
+            );
+            g.addColorStop(0, f.color);
+            g.addColorStop(1, "rgba(0,0,0,0)");
+
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, width, height);
+        });
+
+        // Broad flowing atmospheric filaments
+        for (let band = 0; band < 5; band++) {
+            ctx.beginPath();
+
+            const baseY = height * (.18 + band * .17);
+            const amplitude = 35 + band * 12;
+
+            for (let x = -30; x <= width + 30; x += 12) {
+                const y =
+                    baseY +
+                    Math.sin(x * .0024 + time * .00032 + band) * amplitude +
+                    Math.sin(x * .0008 - time * .00018) * amplitude * .8;
+
+                if (x === -30) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+
+            ctx.strokeStyle = band % 2 === 0
+                ? "rgba(121,213,211,.045)"
+                : "rgba(241,132,112,.035)";
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+        }
+    }
+
+    function drawConnections() {
+        const maxDistance = Math.min(135, width * .12);
+
+        for (let i = 0; i < particles.length; i++) {
+            const a = particles[i];
+
+            for (let j = i + 1; j < particles.length; j++) {
+                const b = particles[j];
+                const dx = a.x - b.x;
+                const dy = a.y - b.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < maxDistance) {
+                    const alpha = (1 - dist / maxDistance) * .13;
+
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.strokeStyle =
+                        `rgba(121,213,211,${alpha})`;
+                    ctx.lineWidth = .65;
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    function drawMolecule(x, y, scale, phase) {
+        const nodes = [
+            [0, 0],
+            [42, -23],
+            [83, 1],
+            [122, -28],
+            [82, 43],
+            [40, 48]
+        ];
+
+        const rotation = Math.sin(phase) * .09;
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+
+        const transformed = nodes.map(([nx, ny]) => [
+            x + (nx * cos - ny * sin) * scale,
+            y + (nx * sin + ny * cos) * scale
+        ]);
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(121,213,211,.20)";
+
+        [[0,1],[1,2],[2,3],[2,4],[0,5],[5,4]].forEach(([a,b]) => {
+            ctx.beginPath();
+            ctx.moveTo(...transformed[a]);
+            ctx.lineTo(...transformed[b]);
+            ctx.stroke();
+        });
+
+        transformed.forEach(([px, py], i) => {
+            const coral = i === 2 || i === 3;
+            const color = coral ? "241,132,112" : "121,213,211";
+
+            const glow = ctx.createRadialGradient(
+                px, py, 0,
+                px, py, 13 * scale
+            );
+
+            glow.addColorStop(0, `rgba(${color},.35)`);
+            glow.addColorStop(1, `rgba(${color},0)`);
+
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(px, py, 13 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = `rgba(${color},.9)`;
+            ctx.beginPath();
+            ctx.arc(px, py, (i === 2 ? 3.1 : 2.2) * scale, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    function render(timestamp) {
+        if (document.hidden) {
+            animationFrame = requestAnimationFrame(render);
+            return;
+        }
+
+        const dt = Math.min(timestamp - (lastFrame || timestamp), 40);
+        lastFrame = timestamp;
+        time += dt;
+
+        ctx.clearRect(0, 0, width, height);
+
+        drawCurrents();
+
+        particles.forEach(p => p.update(dt));
+        drawConnections();
+        particles.forEach(p => p.draw());
+
+        // Slow-moving molecular formations
+        drawMolecule(
+            width * (.76 + Math.sin(time * .00013) * .035),
+            height * (.28 + Math.cos(time * .00017) * .04),
+            .78,
+            time * .0003
+        );
+
+        drawMolecule(
+            width * (.18 + Math.cos(time * .00011) * .035),
+            height * (.72 + Math.sin(time * .00014) * .035),
+            .52,
+            -time * .0002
+        );
+
+        animationFrame = requestAnimationFrame(render);
+    }
+
+    window.addEventListener("resize", resize);
+
+    window.addEventListener("pointermove", e => {
+        pointer.x = e.clientX;
+        pointer.y = e.clientY;
+    }, { passive: true });
+
+    window.addEventListener("pointerleave", () => {
+        pointer.x = -1000;
+        pointer.y = -1000;
+    });
+
+    resize();
+
+    if (reducedMotion) {
+        drawCurrents();
+        particles.forEach(p => p.draw());
+        drawConnections();
+    } else {
+        animationFrame = requestAnimationFrame(render);
+    }
+})();
+</script>
+</body>
+</html>
