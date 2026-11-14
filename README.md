@@ -1,6 +1,6 @@
 # AirSense AI
 
-A student-built air-quality monitoring and PM2.5 forecasting prototype.
+An air-quality monitoring and PM2.5 forecasting prototype.
 
 ## Features
 - Current and hourly pollutant data from Open-Meteo Air Quality API.
