@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    color-scheme: dark;
+    --ink: #0b1516;
+    --cream: #f3f0e7;
+    --muted: #a2aca3;
+    --cyan: #86b9a5;
+    --line: rgba(243, 240, 231, .13);
+  }
+  * { box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+  body { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  #globe-shell {
+    position: relative;
+    width: 100%;
+    height: 640px;
+    overflow: hidden;
+    isolation: isolate;
+    border: 1px solid var(--line);
+    border-radius: 30px;
+    background:
+      radial-gradient(80% 100% at 50% 44%, rgba(37, 74, 67, .43), transparent 63%),
+      linear-gradient(135deg, rgba(16, 30, 30, .98), rgba(8, 16, 17, .98));
+    box-shadow: 0 32px 90px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
+  }
+  #globe-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px) 0 0 / 52px 52px,
+      linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px) 0 0 / 52px 52px;
+    mask-image: linear-gradient(90deg, rgba(0,0,0,.35), transparent 36%, transparent 64%, rgba(0,0,0,.25));
+    opacity: .5;
+  }
+  #globe-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    cursor: grab;
+    outline: none;
+  }
+  #globe-canvas:focus-visible { outline: 2px solid var(--cyan); outline-offset: -7px; }
+  #globe-canvas.dragging { cursor: grabbing; }
+  .chrome {
+    position: absolute;
+    z-index: 4;
+    pointer-events: none;
+  }
+  .topline {
+    top: 22px;
+    left: clamp(19px, 3vw, 36px);
+    right: clamp(19px, 3vw, 36px);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: var(--cyan);
+    font: 600 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .18em;
+  }
+  .eyebrow::before { content: ""; width: 22px; height: 1px; background: currentColor; opacity: .75; }
+  h1 { margin: 0; color: var(--cream); font-family: Georgia, "Times New Roman", serif; font-size: clamp(24px, 2.6vw, 36px); font-weight: 400; letter-spacing: -.04em; }
+  h1 em { color: #d99275; font-weight: 400; }
+  .instructions {
+    max-width: 210px;
+    padding-top: 3px;
+    color: var(--muted);
+    font: 500 9px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .08em;
+    text-align: right;
+    text-transform: uppercase;
+  }
+  .reading-card {
+    top: 104px;
+    right: clamp(18px, 3vw, 34px);
+    width: min(216px, 30vw);
+    padding: 15px 16px 13px;
+    border: 1px solid rgba(244, 237, 224, .13);
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(14, 28, 42, .83), rgba(6, 14, 24, .81));
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .28), inset 0 1px rgba(255,255,255,.05);
+    backdrop-filter: blur(15px);
+    pointer-events: auto;
+  }
+  .reading-kicker { color: #8da1b1; font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .15em; text-transform: uppercase; }
+  .reading-city { margin-top: 8px; color: var(--cream); font-size: 14px; font-weight: 650; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .reading-country { margin-top: 2px; color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .aqi-row { display: flex; align-items: flex-end; gap: 9px; margin-top: 13px; }
+  .aqi-value { color: var(--cyan); font: 500 37px/.84 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.09em; }
+  .aqi-name { padding-bottom: 3px; color: var(--cyan); font: 600 8px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; text-transform: uppercase; }
+  .reading-meta { min-height: 18px; margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(244,237,224,.1); color: #aab9c4; font: 500 8px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
+  .place-picker {
+    width: 100%;
+    margin-top: 10px;
+    padding: 7px 24px 7px 9px;
+    appearance: none;
+    color: var(--cream);
+    border: 1px solid rgba(244,237,224,.16);
+    border-radius: 9px;
+    outline: none;
+    background: rgba(255,255,255,.055) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 12 8'%3E%3Cpath stroke='%2393A2B2' stroke-linecap='round' stroke-width='1.5' d='m1 1.5 5 5 5-5'/%3E%3C/svg%3E") no-repeat right 8px center / 10px;
+    font: 500 9px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    cursor: pointer;
+  }
+  .place-picker:focus { border-color: rgba(111,227,214,.75); box-shadow: 0 0 0 3px rgba(111,227,214,.12); }
+  .place-picker option { color: #f4ede0; background: #0b1722; }
+  .bottomline { bottom: 21px; left: clamp(19px, 3vw, 36px); right: clamp(19px, 3vw, 36px); display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+  .legend { display: flex; align-items: center; gap: 8px; color: #b7c5ce; font: 600 8px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; text-transform: uppercase; }
+  .legend-swatch { width: 104px; height: 7px; border-radius: 999px; background: linear-gradient(90deg, #6cbda1 0%, #d6b46b 27%, #d99168 49%, #ca716a 69%, #aa85b9 84%, #875668 100%); box-shadow: 0 0 17px rgba(194,121,94,.16); }
+  .controls { display: flex; align-items: center; gap: 7px; pointer-events: auto; }
+  .control-button { display: inline-flex; align-items: center; justify-content: center; min-width: 31px; height: 29px; padding: 0 9px; color: #cbd6dc; border: 1px solid rgba(244,237,224,.14); border-radius: 999px; background: rgba(7, 18, 28, .64); font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .07em; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease; }
+  .control-button:hover, .control-button:focus-visible { color: var(--cyan); border-color: rgba(111,227,214,.55); background: rgba(111,227,214,.1); outline: none; transform: translateY(-1px); }
+  .tooltip { position: absolute; z-index: 5; display: none; max-width: 160px; padding: 7px 9px; color: #e8efec; border: 1px solid rgba(244,237,224,.15); border-radius: 8px; background: rgba(5, 14, 23, .88); box-shadow: 0 8px 26px rgba(0,0,0,.28); font: 500 9px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; pointer-events: none; transform: translate(10px, 10px); }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  @media (max-width: 720px) {
+    #globe-shell { height: 575px; border-radius: 23px; }
+    .topline { top: 18px; }
+    .instructions { display: none; }
+    .reading-card { top: auto; bottom: 69px; right: 16px; width: 190px; padding: 12px; border-radius: 15px; }
+    .aqi-value { font-size: 32px; }
+    .bottomline { bottom: 16px; flex-wrap: wrap; }
+    .legend { width: 100%; font-size: 7px; }
+    .legend-swatch { width: 85px; }
+  }
+  @media (max-width: 460px) {
+    #globe-shell { height: 535px; }
+    h1 { font-size: 24px; }
+    .reading-card { width: 176px; }
+    .legend { gap: 5px; font-size: 6.5px; letter-spacing: .06em; }
+    .legend-swatch { width: 72px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .control-button { transition: none; } }
+</style>
+</head>
+<body>
+<section id="globe-shell" aria-labelledby="globe-title">
+  <canvas id="globe-canvas" tabindex="0" aria-label="Interactive global air-quality globe. Drag to rotate, click a city hotspot for its AQI, or use arrow keys to rotate."></canvas>
+  <div class="chrome topline">
+    <div>
+      <div class="eyebrow">Satellite surface · live city heatmap</div>
+      <h1 id="globe-title">The air, <em>everywhere.</em></h1>
+    </div>
+    <div class="instructions">Drag to rotate<br>Click a heat hotspot for live AQI</div>
+  </div>
+  <aside class="chrome reading-card" aria-live="polite" aria-label="Selected place air-quality reading">
+    <div class="reading-kicker" id="reading-kicker">Selected location</div>
+    <div class="reading-city" id="reading-city">Loading location</div>
+    <div class="reading-country" id="reading-country">&nbsp;</div>
+    <div class="aqi-row"><div class="aqi-value" id="aqi-value">—</div><div class="aqi-name" id="aqi-name">AQI</div></div>
+    <div class="reading-meta" id="reading-meta">Reading atmospheric layer…</div>
+    <label class="sr-only" for="place-picker">Choose a city on the globe</label>
+    <select class="place-picker" id="place-picker" aria-label="Choose a city on the globe"></select>
+  </aside>
+  <div class="chrome bottomline">
+    <div class="legend"><span>NASA satellite base</span><span class="legend-swatch" aria-hidden="true"></span><span>Hazardous</span></div>
+    <div class="controls">
+      <button class="control-button" id="reset-view" type="button" title="Center the selected location">Center</button>
+      <button class="control-button" id="motion-toggle" type="button" aria-pressed="false" title="Pause globe rotation">Pause</button>
+    </div>
+  </div>
+  <div class="tooltip" id="tooltip" role="status"></div>
+</section>
+<script>
+(() => {
+  "use strict";
+
+  const STATE = __AIRSENSE_GLOBE_STATE__;
+  const API_URL = "https://air-quality-api.open-meteo.com/v1/air-quality";
+  const SATELLITE_TEXTURE_URL = "https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003615/flat_earth03.jpg";
+  const canvas = document.getElementById("globe-canvas");
+  const shell = document.getElementById("globe-shell");
+  const ctx = canvas.getContext("2d", { alpha: true });
+  const picker = document.getElementById("place-picker");
+  const tooltip = document.getElementById("tooltip");
+  const ui = {
+    kicker: document.getElementById("reading-kicker"),
+    city: document.getElementById("reading-city"),
+    country: document.getElementById("reading-country"),
+    value: document.getElementById("aqi-value"),
+    name: document.getElementById("aqi-name"),
+    meta: document.getElementById("reading-meta"),
+    motion: document.getElementById("motion-toggle"),
+  };
+
+  const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const TAU = Math.PI * 2;
+  const radians = degrees => degrees * Math.PI / 180;
+  const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+  const uniqueId = place => `${place.name}|${place.latitude.toFixed(3)}|${place.longitude.toFixed(3)}`;
+  const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
+  const earthTexture = new Image();
+  let satelliteReady = false;
+  earthTexture.addEventListener("load", () => { satelliteReady = true; });
+  earthTexture.addEventListener("error", () => { satelliteReady = false; });
+  earthTexture.src = SATELLITE_TEXTURE_URL;
+
+  const seedCities = [
+    ["Bengaluru", "India", 12.9716, 77.5946, 79],
+    ["Delhi", "India", 28.6139, 77.2090, 167],
+    ["Mumbai", "India", 19.0760, 72.8777, 108],
+    ["Kolkata", "India", 22.5726, 88.3639, 133],
+    ["Kathmandu", "Nepal", 27.7172, 85.3240, 121],
+    ["Dubai", "United Arab Emirates", 25.2048, 55.2708, 99],
+    ["Cairo", "Egypt", 30.0444, 31.2357, 117],
+    ["Lagos", "Nigeria", 6.5244, 3.3792, 92],
+    ["Johannesburg", "South Africa", -26.2041, 28.0473, 71],
+    ["London", "United Kingdom", 51.5072, -0.1276, 41],
+    ["Paris", "France", 48.8566, 2.3522, 47],
+    ["Istanbul", "Türkiye", 41.0082, 28.9784, 86],
+    ["Moscow", "Russia", 55.7558, 37.6176, 69],
+    ["Beijing", "China", 39.9042, 116.4074, 129],
+    ["Shanghai", "China", 31.2304, 121.4737, 105],
+    ["Tokyo", "Japan", 35.6762, 139.6503, 54],
+    ["Seoul", "South Korea", 37.5665, 126.9780, 82],
+    ["Jakarta", "Indonesia", -6.2088, 106.8456, 111],
+    ["Singapore", "Singapore", 1.3521, 103.8198, 52],
+    ["Sydney", "Australia", -33.8688, 151.2093, 33],
+    ["São Paulo", "Brazil", -23.5558, -46.6396, 67],
+    ["Mexico City", "Mexico", 19.4326, -99.1332, 89],
+    ["New York", "United States", 40.7128, -74.0060, 44],
+    ["Los Angeles", "United States", 34.0522, -118.2437, 63],
+    ["Vancouver", "Canada", 49.2827, -123.1207, 29],
+  ];
+
+  const places = seedCities.map(([name, country, latitude, longitude, aqi]) => ({
+    name, country, latitude, longitude, aqi, pm25: null, source: "Global hotspot layer", updated: "Visual heatmap · tap for live AQI",
+  }));
+  const selectedState = STATE && STATE.selected ? STATE.selected : {};
+  const injected = {
+    name: String(selectedState.name || "Selected location"),
+    country: String(selectedState.country || ""),
+    latitude: number(selectedState.latitude) || 0,
+    longitude: number(selectedState.longitude) || 0,
+    aqi: number(selectedState.aqi),
+    pm25: number(selectedState.pm25),
+    source: selectedState.is_demo ? "Sample atmosphere" : "Dashboard reading",
+    updated: String(selectedState.updated || "Current dashboard reading"),
+    dashboard: true,
+  };
+  const matchIndex = places.findIndex(place => Math.abs(place.latitude - injected.latitude) < .16 && Math.abs(place.longitude - injected.longitude) < .16);
+  if (matchIndex >= 0) places[matchIndex] = { ...places[matchIndex], ...injected };
+  else places.unshift(injected);
+
+  // Lightweight, intentionally simplified coast outlines. They make the globe
+  // legible without a mapping SDK or a remote texture dependency.
+  const coastlines = [
+    [[-168,70],[-150,70],[-136,58],[-128,50],[-125,40],[-118,33],[-108,28],[-98,20],[-86,19],[-81,26],[-80,35],[-72,44],[-67,48],[-60,52],[-57,60],[-72,72],[-104,75],[-135,73],[-168,70]],
+    [[-82,12],[-76,7],[-78,-2],[-74,-12],[-70,-18],[-67,-30],[-60,-39],[-56,-53],[-66,-55],[-73,-45],[-78,-28],[-82,-8],[-82,12]],
+    [[-11,36],[0,43],[9,45],[20,42],[29,38],[38,35],[45,30],[52,28],[59,24],[68,24],[76,20],[83,22],[88,21],[96,19],[105,14],[112,9],[120,15],[123,23],[130,30],[139,36],[143,45],[133,54],[122,57],[110,51],[103,52],[96,58],[84,62],[72,67],[57,69],[42,61],[29,60],[18,65],[5,60],[-5,54],[-11,50],[-11,36]],
+    [[-18,35],[-5,36],[9,35],[22,32],[31,30],[35,22],[43,12],[48,3],[43,-12],[36,-20],[30,-31],[19,-35],[12,-26],[4,-16],[-3,-4],[-6,9],[-15,20],[-18,35]],
+    [[112,-11],[115,-22],[126,-31],[138,-35],[151,-33],[154,-25],[145,-17],[135,-13],[124,-15],[112,-11]],
+    [[130,32],[138,35],[145,42],[142,49],[133,45],[130,32]],
+    [[-52,60],[-35,63],[-28,72],[-40,82],[-55,76],[-52,60]],
+  ];
+
+  const stars = Array.from({ length: 185 }, (_, index) => {
+    const v = (index * 9301 + 49297) % 233280 / 233280;
+    const w = (index * 233 + 991) % 997 / 997;
+    return { x: v, y: w, size: .25 + (index % 4) * .22, alpha: .18 + (index % 7) * .075 };
+  });
+
+  let width = 1, height = 1, dpr = 1;
+  let centerX = 0, centerY = 0, radius = 1;
+  let rotation = -radians(injected.longitude || 78);
+  let tilt = -radians(injected.latitude || 13) * .32;
+  let zoom = 1;
+  let autoRotate = !reducedMotion;
+  let pointer = null;
+  let hovered = null;
+  let active = places.find(place => place.dashboard) || places[0];
+  let inFlight = null;
+  let frame = 0;
+  let lastTime = performance.now();
+  let activeRequest = null;
+
+  function palette(aqi) {
+    const value = number(aqi);
+    if (value === null) return { color: "#8da1b1", name: "Unavailable", rgb: [141,161,177] };
+    if (value <= 50) return { color: "#62d9bd", name: "Good", rgb: [98,217,189] };
+    if (value <= 100) return { color: "#e6cc6a", name: "Moderate", rgb: [230,204,106] };
+    if (value <= 150) return { color: "#ff9b61", name: "Unhealthy for sensitive groups", rgb: [255,155,97] };
+    if (value <= 200) return { color: "#f56362", name: "Unhealthy", rgb: [245,99,98] };
+    if (value <= 300) return { color: "#bd64d8", name: "Very unhealthy", rgb: [189,100,216] };
+    return { color: "#a65368", name: "Hazardous", rgb: [166,83,104] };
+  }
+
+  function project(latitude, longitude) {
+    const lat = radians(latitude);
+    const lon = radians(longitude) + rotation;
+    const cosLat = Math.cos(lat);
+    const sinLat = Math.sin(lat);
+    const x = cosLat * Math.sin(lon);
+    const y = sinLat * Math.cos(tilt) - cosLat * Math.cos(lon) * Math.sin(tilt);
+    const z = sinLat * Math.sin(tilt) + cosLat * Math.cos(lon) * Math.cos(tilt);
+    return { x: centerX + radius * x, y: centerY - radius * y, z, rawX: x, rawY: y };
+  }
+
+  function resize() {
+    const bounds = shell.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = Math.max(1, Math.round(bounds.width));
+    height = Math.max(1, Math.round(bounds.height));
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    centerX = width * (width < 720 ? .47 : .49);
+    centerY = height * (width < 720 ? .52 : .51);
+    radius = Math.min(height * .40, width * (width < 720 ? .42 : .31)) * zoom;
+  }
+
+  function line(points, style, lineWidth = 1) {
+    let drawing = false;
+    ctx.beginPath();
+    for (const [lat, lng] of points) {
+      const point = project(lat, lng);
+      if (point.z <= .02) { drawing = false; continue; }
+      if (!drawing) { ctx.moveTo(point.x, point.y); drawing = true; }
+      else ctx.lineTo(point.x, point.y);
+    }
+    ctx.strokeStyle = style;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+
+  function drawStars(time) {
+    const color = "204, 234, 247";
+    for (const star of stars) {
+      const twinkle = .7 + .3 * Math.sin(time * .001 + star.x * 16);
+      ctx.fillStyle = `rgba(${color}, ${star.alpha * twinkle})`;
+      ctx.beginPath();
+      ctx.arc(star.x * width, star.y * height, star.size, 0, TAU);
+      ctx.fill();
+    }
+  }
+
+  function drawSatelliteTexture() {
+    const imageWidth = earthTexture.naturalWidth;
+    const imageHeight = earthTexture.naturalHeight;
+    const cropWidth = imageWidth / 2;
+    const destinationX = centerX - radius;
+    const destinationY = centerY - radius;
+    const destinationSize = radius * 2;
+    const centerU = (((-rotation / TAU) + .5) % 1 + 1) % 1 * imageWidth;
+    const sourceX = ((centerU - cropWidth / 2) % imageWidth + imageWidth) % imageWidth;
+    const firstWidth = Math.min(cropWidth, imageWidth - sourceX);
+    const firstDestinationWidth = destinationSize * (firstWidth / cropWidth);
+
+    ctx.drawImage(
+      earthTexture,
+      sourceX, 0, firstWidth, imageHeight,
+      destinationX, destinationY, firstDestinationWidth, destinationSize,
+    );
+    if (firstWidth < cropWidth) {
+      ctx.drawImage(
+        earthTexture,
+        0, 0, cropWidth - firstWidth, imageHeight,
+        destinationX + firstDestinationWidth, destinationY,
+        destinationSize - firstDestinationWidth, destinationSize,
+      );
+    }
+
+    const nightfall = ctx.createRadialGradient(
+      centerX - radius * .3, centerY - radius * .34, radius * .15,
+      centerX + radius * .32, centerY + radius * .28, radius * 1.12,
+    );
+    nightfall.addColorStop(0, "rgba(255, 255, 244, 0)");
+    nightfall.addColorStop(.68, "rgba(6, 19, 20, .04)");
+    nightfall.addColorStop(1, "rgba(5, 14, 15, .56)");
+    ctx.fillStyle = nightfall;
+    ctx.fillRect(destinationX, destinationY, destinationSize, destinationSize);
+  }
+
+  function drawGlobe(time) {
+    const outer = ctx.createRadialGradient(centerX - radius * .28, centerY - radius * .33, radius * .08, centerX, centerY, radius * 1.25);
+    outer.addColorStop(0, "rgba(132, 185, 165, .18)");
+    outer.addColorStop(.58, "rgba(74, 126, 115, .08)");
+    outer.addColorStop(1, "rgba(15, 42, 39, 0)");
+    ctx.fillStyle = outer;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * 1.3, 0, TAU);
+    ctx.fill();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, TAU);
+    ctx.clip();
+    const usingSatellite = satelliteReady && earthTexture.naturalWidth > 0;
+    if (usingSatellite) {
+      drawSatelliteTexture();
+    } else {
+      const water = ctx.createRadialGradient(centerX - radius * .32, centerY - radius * .4, radius * .08, centerX + radius * .22, centerY + radius * .25, radius * 1.24);
+      water.addColorStop(0, "#29667e");
+      water.addColorStop(.42, "#1a4a61");
+      water.addColorStop(.79, "#102f42");
+      water.addColorStop(1, "#07191f");
+      ctx.fillStyle = water;
+      ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
+
+      ctx.globalCompositeOperation = "screen";
+      for (let i = 0; i < 10; i += 1) {
+        const y = centerY - radius + (i + .5) * (radius * 2 / 10);
+        ctx.strokeStyle = `rgba(184, 216, 204, ${.015 + (i % 3) * .008})`;
+        ctx.lineWidth = radius * (.025 + (i % 2) * .006);
+        ctx.beginPath();
+        ctx.ellipse(centerX + Math.sin(time * .0001 + i) * radius * .08, y, radius * .9, radius * .08, -.15, 0, TAU);
+        ctx.stroke();
+      }
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    // Latitude / longitude grid gives the sphere its readable, navigable form.
+    for (let latitude = -60; latitude <= 60; latitude += 20) {
+      const points = [];
+      for (let longitude = -180; longitude <= 180; longitude += 4) points.push([latitude, longitude]);
+      line(points, usingSatellite ? "rgba(238, 240, 222, .14)" : "rgba(155, 208, 192, .16)", .7);
+    }
+    for (let longitude = -160; longitude <= 180; longitude += 20) {
+      const points = [];
+      for (let latitude = -88; latitude <= 88; latitude += 3) points.push([latitude, longitude]);
+      line(points, usingSatellite ? "rgba(238, 240, 222, .13)" : "rgba(155, 208, 192, .15)", .7);
+    }
+
+    if (!usingSatellite) {
+      // Fallback coastline layer when the satellite texture is unavailable.
+      ctx.fillStyle = "rgba(87, 164, 132, .11)";
+      for (const shape of coastlines) {
+        const visible = shape.map(([lng, lat]) => project(lat, lng));
+        if (visible.filter(point => point.z > .02).length < 3) continue;
+        ctx.beginPath();
+        let started = false;
+        for (const point of visible) {
+          if (point.z <= .02) continue;
+          if (!started) { ctx.moveTo(point.x, point.y); started = true; }
+          else ctx.lineTo(point.x, point.y);
+        }
+        if (started) { ctx.closePath(); ctx.fill(); }
+        const coastPoints = shape.map(([lng, lat]) => [lat, lng]);
+        line(coastPoints, "rgba(133, 208, 174, .48)", .8);
+      }
+    }
+
+    drawHeatmap(time);
+    ctx.restore();
+
+    const rim = ctx.createRadialGradient(centerX - radius * .24, centerY - radius * .26, radius * .78, centerX, centerY, radius * 1.04);
+    rim.addColorStop(0, "rgba(134, 185, 165, 0)");
+    rim.addColorStop(.8, "rgba(104, 164, 142, .08)");
+    rim.addColorStop(1, "rgba(185, 221, 194, .48)");
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, TAU);
+    ctx.stroke();
+  }
+
+  function drawHeatmap(time) {
+    const visible = places.map(place => ({ place, point: project(place.latitude, place.longitude) })).filter(item => item.point.z > .035);
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    for (const { place, point } of visible) {
+      const style = palette(place.aqi);
+      const severity = clamp((number(place.aqi) || 55) / 220, .15, 1.45);
+      const pulse = 1 + Math.sin(time * .0024 + place.latitude) * .06;
+      const haloSize = radius * (.075 + severity * .072) * pulse;
+      const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, haloSize);
+      gradient.addColorStop(0, `rgba(${style.rgb.join(",")}, .36)`);
+      gradient.addColorStop(.32, `rgba(${style.rgb.join(",")}, .17)`);
+      gradient.addColorStop(1, `rgba(${style.rgb.join(",")}, 0)`);
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, haloSize, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Markers appear after heat haze so every place remains clickable and legible.
+    for (const { place, point } of visible) {
+      const style = palette(place.aqi);
+      const isActive = place === active;
+      const isHovered = place === hovered;
+      const pointRadius = isActive ? 5.2 : isHovered ? 4.5 : 3.25;
+      if (isActive) {
+        ctx.strokeStyle = `${style.color}aa`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 10 + Math.sin(time * .004) * 1.5, 0, TAU);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(4, 14, 22, .92)";
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, pointRadius + 1.4, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = style.color;
+      ctx.shadowBlur = isActive ? 15 : 8;
+      ctx.shadowColor = style.color;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, pointRadius, 0, TAU);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      if (isActive || isHovered) {
+        const labelY = point.y - 14;
+        ctx.font = "600 9px ui-monospace, SFMono-Regular, Menlo, monospace";
+        ctx.textAlign = point.x > centerX + radius * .55 ? "right" : "left";
+        ctx.fillStyle = "rgba(244, 237, 224, .92)";
+        ctx.fillText(place.name, point.x + (ctx.textAlign === "left" ? 9 : -9), labelY);
+      }
+    }
+  }
+
+  function draw(time) {
+    ctx.clearRect(0, 0, width, height);
+    const background = ctx.createLinearGradient(0, 0, width, height);
+    background.addColorStop(0, "rgba(10, 28, 42, .36)");
+    background.addColorStop(1, "rgba(4, 10, 18, .1)");
+    ctx.fillStyle = background;
+    ctx.fillRect(0, 0, width, height);
+    drawStars(time);
+    drawGlobe(time);
+  }
+
+  function loop(time) {
+    const elapsed = Math.min(50, time - lastTime);
+    lastTime = time;
+    if (autoRotate && !pointer) rotation += elapsed * .000055;
+    draw(time);
+    frame = requestAnimationFrame(loop);
+  }
+
+  function currentProjection(place) {
+    return project(place.latitude, place.longitude);
+  }
+
+  function placeAt(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    let candidate = null;
+    let closest = 22;
+    for (const place of places) {
+      const point = currentProjection(place);
+      if (point.z <= .035) continue;
+      const distance = Math.hypot(point.x - x, point.y - y);
+      if (distance < closest) { closest = distance; candidate = place; }
+    }
+    return candidate;
+  }
+
+  function updateTooltip(event) {
+    const place = placeAt(event.clientX, event.clientY);
+    if (place !== hovered) { hovered = place; canvas.style.cursor = place ? "pointer" : (pointer ? "grabbing" : "grab"); }
+    if (!place) { tooltip.style.display = "none"; return; }
+    const color = palette(place.aqi);
+    tooltip.innerHTML = `<b>${escapeHtml(place.name)}</b><br><span style="color:${color.color}">${place.aqi == null ? "Tap for AQI" : `AQI ${Math.round(place.aqi)}`}</span>`;
+    const shellRect = shell.getBoundingClientRect();
+    tooltip.style.left = `${event.clientX - shellRect.left}px`;
+    tooltip.style.top = `${event.clientY - shellRect.top}px`;
+    tooltip.style.display = "block";
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+  }
+
+  function describe(place, loading = false) {
+    const style = palette(place.aqi);
+    ui.city.textContent = place.name;
+    ui.country.textContent = place.country || "Global atmospheric layer";
+    ui.kicker.textContent = loading ? "Loading live reading" : (place.dashboard ? "Your observation point" : "Selected hotspot");
+    ui.value.textContent = loading ? "…" : (place.aqi === null ? "—" : Math.round(place.aqi));
+    ui.value.style.color = style.color;
+    ui.name.textContent = loading ? "LIVE" : style.name;
+    ui.name.style.color = style.color;
+    if (loading) ui.meta.textContent = "Querying Open-Meteo for current US AQI…";
+    else {
+      const pm = place.pm25 === null || place.pm25 === undefined ? "" : ` · PM₂.₅ ${Number(place.pm25).toFixed(1)} µg/m³`;
+      ui.meta.textContent = `${place.source || "AQI layer"}${pm} · ${place.updated || "Current"}`;
+    }
+  }
+
+  function buildPicker() {
+    picker.innerHTML = "";
+    const ordered = [...places].sort((a, b) => a.name.localeCompare(b.name));
+    for (const place of ordered) {
+      const option = document.createElement("option");
+      option.value = uniqueId(place);
+      option.textContent = `${place.name}${place.country ? ` · ${place.country}` : ""}`;
+      picker.append(option);
+    }
+  }
+
+  function selectPicker(place) {
+    picker.value = uniqueId(place);
+  }
+
+  function centerOn(place) {
+    rotation = -radians(place.longitude);
+    tilt = clamp(-radians(place.latitude) * .45, -0.72, .72);
+  }
+
+  async function fetchReading(place) {
+    if (activeRequest) activeRequest.abort();
+    activeRequest = new AbortController();
+    const timeout = window.setTimeout(() => activeRequest && activeRequest.abort(), 11000);
+    try {
+      const query = new URLSearchParams({
+        latitude: String(place.latitude), longitude: String(place.longitude), current: "us_aqi,pm2_5", timezone: "auto",
+      });
+      const response = await fetch(`${API_URL}?${query.toString()}`, { signal: activeRequest.signal, cache: "no-store" });
+      if (!response.ok) throw new Error(`Provider returned ${response.status}`);
+      const payload = await response.json();
+      const reading = payload && payload.current ? payload.current : null;
+      if (!reading || !Number.isFinite(Number(reading.us_aqi))) throw new Error("No AQI returned");
+      if (place !== active) return;
+      place.aqi = Number(reading.us_aqi);
+      place.pm25 = number(reading.pm2_5);
+      place.source = "Live Open-Meteo AQI";
+      place.updated = reading.time ? `Updated ${String(reading.time).replace("T", " · ")}` : "Current provider reading";
+      place.live = true;
+      describe(place);
+    } catch (error) {
+      if (place !== active || error.name === "AbortError") return;
+      place.source = place.dashboard ? (place.source || "Dashboard reading") : "Cached hotspot estimate · live lookup unavailable";
+      place.updated = place.dashboard ? (place.updated || "Current dashboard reading") : "Tap another marker to retry";
+      describe(place);
+    } finally {
+      window.clearTimeout(timeout);
+      if (activeRequest && !activeRequest.signal.aborted) activeRequest = null;
+    }
+  }
+
+  async function loadHeatmap() {
+    try {
+      const query = new URLSearchParams({
+        latitude: places.map(place => place.latitude).join(","),
+        longitude: places.map(place => place.longitude).join(","),
+        current: "us_aqi,pm2_5",
+        timezone: "auto",
+      });
+      const response = await fetch(`${API_URL}?${query.toString()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Provider returned ${response.status}`);
+      const payload = await response.json();
+      const samples = Array.isArray(payload) ? payload : [payload];
+      samples.forEach((sample, index) => {
+        const reading = sample && sample.current;
+        const place = places[index];
+        if (!place || !reading || !Number.isFinite(Number(reading.us_aqi))) return;
+        place.aqi = Number(reading.us_aqi);
+        place.pm25 = number(reading.pm2_5);
+        place.source = "Live city heatmap · Open-Meteo";
+        place.updated = reading.time ? `Updated ${String(reading.time).replace("T", " · ")}` : "Current provider reading";
+      });
+      if (active) describe(active);
+    } catch (_) {
+      // Retain the labelled visual hotspots until a city is selected for a
+      // direct live lookup. The globe remains fully useful offline.
+    }
+  }
+
+  function selectPlace(place, requestLive = true) {
+    active = place;
+    selectPicker(place);
+    describe(place, requestLive);
+    if (requestLive) fetchReading(place);
+    else describe(place);
+  }
+
+  function pointerDown(event) {
+    canvas.setPointerCapture(event.pointerId);
+    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, rotation, tilt, moved: false };
+    tooltip.style.display = "none";
+    canvas.classList.add("dragging");
+  }
+
+  function pointerMove(event) {
+    if (pointer && event.pointerId === pointer.id) {
+      const dx = event.clientX - pointer.x;
+      const dy = event.clientY - pointer.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) pointer.moved = true;
+      rotation = pointer.rotation + dx / Math.max(180, radius) * 1.22;
+      tilt = clamp(pointer.tilt + dy / Math.max(180, radius) * .72, -1.08, 1.08);
+      return;
+    }
+    updateTooltip(event);
+  }
+
+  function pointerUp(event) {
+    if (!pointer || event.pointerId !== pointer.id) return;
+    const wasDrag = pointer.moved;
+    pointer = null;
+    canvas.classList.remove("dragging");
+    try { canvas.releasePointerCapture(event.pointerId); } catch (_) { /* pointer was already released */ }
+    if (!wasDrag) {
+      const place = placeAt(event.clientX, event.clientY);
+      if (place) selectPlace(place, true);
+    }
+    updateTooltip(event);
+  }
+
+  canvas.addEventListener("pointerdown", pointerDown);
+  canvas.addEventListener("pointermove", pointerMove);
+  canvas.addEventListener("pointerup", pointerUp);
+  canvas.addEventListener("pointercancel", pointerUp);
+  canvas.addEventListener("pointerleave", () => { if (!pointer) { hovered = null; tooltip.style.display = "none"; } });
+  canvas.addEventListener("wheel", event => {
+    event.preventDefault();
+    zoom = clamp(zoom + (event.deltaY < 0 ? .06 : -.06), .78, 1.23);
+    radius = Math.min(height * .40, width * (width < 720 ? .42 : .31)) * zoom;
+  }, { passive: false });
+  canvas.addEventListener("keydown", event => {
+    const step = .13;
+    if (event.key === "ArrowLeft") { rotation -= step; event.preventDefault(); }
+    else if (event.key === "ArrowRight") { rotation += step; event.preventDefault(); }
+    else if (event.key === "ArrowUp") { tilt = clamp(tilt - step, -1.08, 1.08); event.preventDefault(); }
+    else if (event.key === "ArrowDown") { tilt = clamp(tilt + step, -1.08, 1.08); event.preventDefault(); }
+    else if (event.key === " " || event.key === "p" || event.key === "P") { toggleMotion(); event.preventDefault(); }
+    else if (event.key === "Enter" && active) { selectPlace(active, true); event.preventDefault(); }
+  });
+
+  function toggleMotion() {
+    autoRotate = !autoRotate;
+    ui.motion.textContent = autoRotate ? "Pause" : "Play";
+    ui.motion.setAttribute("aria-pressed", String(!autoRotate));
+    ui.motion.title = autoRotate ? "Pause globe rotation" : "Resume globe rotation";
+  }
+
+  document.getElementById("motion-toggle").addEventListener("click", toggleMotion);
+  document.getElementById("reset-view").addEventListener("click", () => { centerOn(active || injected); zoom = 1; resize(); });
+  picker.addEventListener("change", () => {
+    const place = places.find(item => uniqueId(item) === picker.value);
+    if (place) { centerOn(place); selectPlace(place, true); }
+  });
+
+  const observer = new ResizeObserver(resize);
+  observer.observe(shell);
+  buildPicker();
+  selectPicker(active);
+  centerOn(active);
+  resize();
+  describe(active);
+  loadHeatmap();
+  frame = requestAnimationFrame(loop);
+  window.addEventListener("beforeunload", () => { cancelAnimationFrame(frame); observer.disconnect(); if (activeRequest) activeRequest.abort(); });
+})();
+</script>
+</body>
+</html>

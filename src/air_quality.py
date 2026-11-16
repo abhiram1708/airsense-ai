@@ -23,7 +23,23 @@ def search_locations(name: str, count: int = 8) -> list[dict]:
     return results
 
 
+POLLUTANT_COLUMNS = [
+    "pm2_5",
+    "pm10",
+    "nitrogen_dioxide",
+    "sulphur_dioxide",
+    "ozone",
+    "carbon_monoxide",
+]
+
+
 def fetch_air_quality(latitude: float, longitude: float) -> dict:
+    """Fetch current and hourly CAMS-based air quality from Open-Meteo.
+
+    Returns provider-calculated US and European AQI values alongside hourly
+    pollutant concentrations. These are model-based estimates, not station
+    measurements.
+    """
     params = {
         "latitude": latitude,
         "longitude": longitude,
@@ -31,12 +47,15 @@ def fetch_air_quality(latitude: float, longitude: float) -> dict:
             "us_aqi,european_aqi,pm2_5,pm10,carbon_monoxide,"
             "nitrogen_dioxide,sulphur_dioxide,ozone"
         ),
-        "hourly": "pm2_5,pm10,nitrogen_dioxide,sulphur_dioxide,ozone",
+        "hourly": (
+            "us_aqi,european_aqi,pm2_5,pm10,nitrogen_dioxide,"
+            "sulphur_dioxide,ozone,carbon_monoxide"
+        ),
         "past_days": 30,
-        "forecast_days": 2,
+        "forecast_days": 5,
         "timezone": "auto",
     }
-    response = requests.get(AIR_QUALITY_URL, params=params, timeout=30)
+    response = requests.get(AIR_QUALITY_URL, params=params, timeout=12)
     response.raise_for_status()
     data = response.json()
 
@@ -46,8 +65,23 @@ def fetch_air_quality(latitude: float, longitude: float) -> dict:
     hourly = pd.DataFrame(data["hourly"])
     if "time" not in hourly.columns:
         raise ValueError("The provider response did not include hourly timestamps.")
-    hourly["time"] = pd.to_datetime(hourly["time"])
-    return {"current": data["current"], "hourly": hourly}
+    hourly["time"] = pd.to_datetime(hourly["time"], errors="coerce")
+    for column in hourly.columns:
+        if column != "time":
+            hourly[column] = pd.to_numeric(hourly[column], errors="coerce")
+    hourly = hourly.dropna(subset=["time"]).sort_values("time").reset_index(drop=True)
+
+    return {
+        "current": data["current"],
+        "hourly": hourly,
+        "timezone": data.get("timezone", "auto"),
+        "timezone_abbreviation": data.get("timezone_abbreviation", ""),
+        "units": data.get("hourly_units", {}),
+        "latitude": data.get("latitude"),
+        "longitude": data.get("longitude"),
+        "elevation": data.get("elevation"),
+        "is_demo": False,
+    }
 
 
 # Public mirror of CPCB/data.gov.in station pollutant observations.

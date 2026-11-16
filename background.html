@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,14 +22,16 @@ canvas {
     pointer-events: none;
 }
 
-#atmosphere {
-    z-index: 0;
-}
+#atmosphere { z-index: 0; }
 
 #grain {
     z-index: 1;
-    opacity: .13;
+    opacity: .12;
     mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #grain { opacity: .07; }
 }
 </style>
 </head>
@@ -40,33 +41,143 @@ canvas {
 
 <script>
 (() => {
+    "use strict";
+
+    // The Python app injects the live AQI state here.
+    const STATE = __AIRSENSE_STATE__;
+    const severity = Math.max(0, Math.min(5, Number(STATE && STATE.severity) || 0));
+
     const canvas = document.getElementById("atmosphere");
     const ctx = canvas.getContext("2d", { alpha: true });
     const grainCanvas = document.getElementById("grain");
     const grainCtx = grainCanvas.getContext("2d", { alpha: true });
 
-    const reducedMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)"
-    ).matches;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let width = 0;
     let height = 0;
     let dpr = 1;
     let particles = [];
+    let ripples = [];
     let time = 0;
-    let animationFrame;
     let lastFrame = 0;
+    let animationFrame = 0;
+    let scrollOffset = 0;
+    let hostWindow = window;
+    let hostDocument = document;
 
-    const pointer = { x: -1000, y: -1000 };
-    const colors = [
-        [119, 213, 211],
-        [241, 132, 112],
-        [223, 193, 143],
-        [154, 173, 207]
+    const pointer = {
+        x: -1000,
+        y: -1000,
+        targetX: -1000,
+        targetY: -1000,
+        active: false,
+        strength: 0
+    };
+
+    const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+    const random = (min, max) => min + Math.random() * (max - min);
+    const rgba = (color, alpha) =>
+        `rgba(${Math.round(color[0])},${Math.round(color[1])},${Math.round(color[2])},${alpha})`;
+
+    const mixColor = (a, b, amount) => [
+        a[0] + (b[0] - a[0]) * amount,
+        a[1] + (b[1] - a[1]) * amount,
+        a[2] + (b[2] - a[2]) * amount
     ];
 
-    const random = (min, max) =>
-        min + Math.random() * (max - min);
+    const CLEAN = {
+        primary: [111, 227, 214],
+        secondary: [124, 160, 255],
+        accent: [244, 237, 224]
+    };
+    const POLLUTED = {
+        primary: [255, 128, 105],
+        secondary: [233, 187, 120],
+        accent: [194, 69, 92]
+    };
+
+    const mix = severity / 5;
+    const targetPalette = [
+        mixColor(CLEAN.primary, POLLUTED.primary, mix),
+        mixColor(CLEAN.secondary, POLLUTED.secondary, mix),
+        mixColor(CLEAN.accent, POLLUTED.accent, mix * .72)
+    ];
+    const palette = targetPalette.map(color => color.slice());
+
+    // ------------------------------------------------------------------
+    // Parent-page interaction (the iframe itself is pointer-events: none)
+    // ------------------------------------------------------------------
+
+    try {
+        if (window.parent && window.parent !== window) {
+            hostWindow = window.parent;
+            hostDocument = hostWindow.document;
+        }
+    } catch (error) {
+        hostWindow = window;
+        hostDocument = document;
+    }
+
+    function viewportPoint(event) {
+        return {
+            x: event.clientX,
+            y: event.clientY
+        };
+    }
+
+    function onPointerMove(event) {
+        const point = viewportPoint(event);
+        pointer.targetX = point.x;
+        pointer.targetY = point.y;
+        pointer.active = true;
+        pointer.strength = 1;
+    }
+
+    function onPointerLeave() {
+        pointer.active = false;
+    }
+
+    function onPointerDown(event) {
+        const point = viewportPoint(event);
+        addRipple(point.x, point.y);
+        pointer.strength = 1.4;
+    }
+
+    function onScroll() {
+        try {
+            const doc = hostDocument;
+            scrollOffset = hostWindow.scrollY
+                || doc.documentElement.scrollTop
+                || doc.body.scrollTop
+                || 0;
+        } catch (error) {
+            scrollOffset = 0;
+        }
+    }
+
+    let scrollTick = 0;
+    function onScrollThrottled() {
+        const now = performance.now();
+        if (now - scrollTick < 80) return;
+        scrollTick = now;
+        onScroll();
+    }
+
+    try {
+        hostDocument.addEventListener("pointermove", onPointerMove, { passive: true });
+        hostDocument.addEventListener("pointerdown", onPointerDown, { passive: true });
+        hostDocument.addEventListener("pointerleave", onPointerLeave, { passive: true });
+        hostDocument.addEventListener("scroll", onScrollThrottled, { passive: true, capture: true });
+        hostWindow.addEventListener("scroll", onScrollThrottled, { passive: true });
+        onScroll();
+    } catch (error) {
+        // Cross-origin restrictions: the atmosphere still animates on its own.
+    }
+
+    // ------------------------------------------------------------------
+    // Particles
+    // ------------------------------------------------------------------
 
     class Particle {
         constructor(initial = false) {
@@ -74,44 +185,49 @@ canvas {
         }
 
         reset(initial = false) {
-            this.x = random(0, width);
-            this.y = initial ? random(0, height) : height + 30;
-            this.vx = random(-.15, .15);
-            this.vy = random(-.35, -.05);
-            this.size = random(.5, 2.1);
+            this.x = random(-20, width + 20);
+            this.y = initial ? random(0, height) : height + random(10, 90);
+            this.vx = random(-.12, .12);
+            this.vy = random(-.3, -.04);
+            this.size = random(.35, 1.9);
             this.phase = random(0, Math.PI * 2);
-            this.speed = random(.3, 1.1);
-            this.color = colors[
-                Math.floor(Math.random() * colors.length)
-            ];
-            this.alpha = random(.15, .7);
-            this.depth = random(.25, 1);
+            this.speed = random(.35, 1.15);
+            this.depth = random(.22, 1);
             this.seed = random(0, 1000);
+            this.colorIndex = Math.random() < .68 ? 0 : (Math.random() < .6 ? 1 : 2);
+            this.alpha = random(.16, .62);
+            this.dust = Math.random() < .22;
+            if (this.dust) {
+                this.size *= .62;
+                this.alpha *= .7;
+                this.speed *= .7;
+                this.colorIndex = 2;
+            }
         }
 
         update(dt) {
             const scale = dt / 16.67;
-            const nx = this.x / width;
-            const ny = this.y / height;
+            const nx = this.x / Math.max(1, width);
+            const ny = this.y / Math.max(1, height);
+            const flow =
+                Math.sin(ny * 5.4 + time * .00025 + this.seed) * .9 +
+                Math.cos(nx * 4.2 - time * .00018) * .55 +
+                Math.sin((nx + ny) * 3.1 + time * .00012) * .42;
 
-            // Smooth atmospheric flow field
-            const angle =
-                Math.sin(ny * 5.2 + time * .00027 + this.seed) * .8 +
-                Math.cos(nx * 4.3 - time * .00019) * .5 +
-                Math.sin((nx + ny) * 3 + time * .00015) * .35;
+            this.vx += Math.cos(flow) * .007 * this.depth * scale;
+            this.vy += Math.sin(flow) * .005 * this.depth * scale - .0022 * scale;
 
-            this.vx += Math.cos(angle) * .008 * this.depth * scale;
-            this.vy += Math.sin(angle) * .006 * this.depth * scale - .003;
-
-            // Gentle pointer response
-            const dx = this.x - pointer.x;
-            const dy = this.y - pointer.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < 150 && dist > 0) {
-                const force = (150 - dist) / 150;
-                this.vx += dx / dist * force * .025 * scale;
-                this.vy += dy / dist * force * .025 * scale;
+            if (pointer.active) {
+                const dx = this.x - pointer.x;
+                const dy = this.y - pointer.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                const reach = 190;
+                if (dist < reach) {
+                    const force = (1 - dist / reach) * pointer.strength;
+                    const swirl = this.dust ? .026 : .044;
+                    this.vx += (-dy / dist) * force * swirl * scale + (dx / dist) * force * .012 * scale;
+                    this.vy += (dx / dist) * force * swirl * scale + (dy / dist) * force * .012 * scale;
+                }
             }
 
             this.vx *= .985;
@@ -119,237 +235,444 @@ canvas {
 
             this.x += this.vx * scale * this.speed;
             this.y += this.vy * scale * this.speed;
+            this.phase += .01 * scale;
 
-            this.phase += .012 * scale;
-
-            if (
-                this.y < -40 ||
-                this.x < -40 ||
-                this.x > width + 40
-            ) {
+            if (this.y < -60) {
                 this.reset();
             }
+            if (this.dust) {
+                this.x = (this.x + width + 30) % (width + 60);
+            } else if (this.x < -50 || this.x > width + 50) {
+                this.x = this.x < -50 ? width + 40 : -40;
+            }
+
+            const drift = (this.x + this.y * .35) % 900;
+            this.edgeAlpha = .55 + .45 * Math.sin(drift * .01 + this.phase);
+        }
+
+        color() {
+            return palette[this.colorIndex] || palette[0];
         }
 
         draw() {
-            const pulse = .75 + Math.sin(this.phase) * .25;
-            const alpha = this.alpha * pulse;
+            const pulse = .78 + Math.sin(this.phase) * .22;
+            const alpha = this.alpha * pulse * (this.edgeAlpha || 1);
+            const color = this.color();
 
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size * this.depth, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${this.color.join(",")},${alpha})`;
+            ctx.fillStyle = rgba(color, alpha);
             ctx.fill();
 
-            if (this.size > 1.5) {
+            if (this.size > 1.25 && this.depth > .55) {
                 const glow = ctx.createRadialGradient(
                     this.x, this.y, 0,
-                    this.x, this.y, this.size * 8
+                    this.x, this.y, this.size * 9
                 );
-
-                glow.addColorStop(
-                    0,
-                    `rgba(${this.color.join(",")},${alpha * .3})`
-                );
-                glow.addColorStop(1, "rgba(0,0,0,0)");
-
+                glow.addColorStop(0, rgba(color, alpha * .22));
+                glow.addColorStop(1, rgba(color, 0));
                 ctx.fillStyle = glow;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size * 8, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y, this.size * 9, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
     }
+
+    // ------------------------------------------------------------------
+    // Ripples
+    // ------------------------------------------------------------------
+
+    function addRipple(x, y) {
+        if (ripples.length > 7) ripples.shift();
+        ripples.push({
+            x,
+            y,
+            radius: 6,
+            maxRadius: Math.min(280, Math.max(120, width * .18)),
+            alpha: .55,
+            colorIndex: ripples.length % 2
+        });
+        for (const particle of particles) {
+            const dx = particle.x - x;
+            const dy = particle.y - y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            if (dist < 210) {
+                const force = (1 - dist / 210) * .9;
+                particle.vx += (dx / dist) * force;
+                particle.vy += (dy / dist) * force;
+            }
+        }
+    }
+
+    function drawRipples() {
+        if (!ripples.length) return;
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        for (let index = ripples.length - 1; index >= 0; index--) {
+            const ripple = ripples[index];
+            const color = palette[ripple.colorIndex] || palette[0];
+            const progress = ripple.radius / ripple.maxRadius;
+            ctx.beginPath();
+            ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = rgba(color, ripple.alpha * (1 - progress) * .7);
+            ctx.lineWidth = 1.1;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(ripple.x, ripple.y, ripple.radius * .72, 0, Math.PI * 2);
+            ctx.strokeStyle = rgba(color, ripple.alpha * (1 - progress) * .25);
+            ctx.lineWidth = .6;
+            ctx.stroke();
+
+            ripple.radius += (ripple.maxRadius - ripple.radius) * .035 + .35;
+            ripple.alpha *= .972;
+            if (ripple.alpha < .015 || ripple.radius > ripple.maxRadius * .995) {
+                ripples.splice(index, 1);
+            }
+        }
+        ctx.restore();
+    }
+
+    // ------------------------------------------------------------------
+    // Atmosphere layers
+    // ------------------------------------------------------------------
+
+    function drawFields() {
+        const maxDim = Math.max(width, height);
+        const t = time * .001;
+        const drift = scrollOffset * .015;
+
+        const fields = [
+            {
+                x: width * (.17 + Math.sin(t * .045) * .04),
+                y: height * .22 - drift,
+                radius: maxDim * .5,
+                color: palette[0],
+                alpha: .105 + mix * .02
+            },
+            {
+                x: width * (.83 + Math.cos(t * .037) * .045),
+                y: height * .34 - drift * 1.6,
+                radius: maxDim * .42,
+                color: palette[1],
+                alpha: .085 + mix * .03
+            },
+            {
+                x: width * (.5 + Math.sin(t * .028) * .07),
+                y: height * (.9 - Math.cos(t * .033) * .05) - drift * .6,
+                radius: maxDim * .46,
+                color: palette[2],
+                alpha: .075 + mix * .045
+            },
+            {
+                x: width * .62,
+                y: height * .58,
+                radius: maxDim * .3,
+                color: palette[1],
+                alpha: .035 + mix * .02
+            }
+        ];
+
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        for (const field of fields) {
+            const gradient = ctx.createRadialGradient(
+                field.x, field.y, 0,
+                field.x, field.y, field.radius
+            );
+            gradient.addColorStop(0, rgba(field.color, field.alpha));
+            gradient.addColorStop(.45, rgba(field.color, field.alpha * .42));
+            gradient.addColorStop(1, rgba(field.color, 0));
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+        }
+        ctx.restore();
+    }
+
+    function drawHazeBands() {
+        const t = time * .001;
+        const bandCount = width < 700 ? 3 : 5;
+        ctx.save();
+        for (let band = 0; band < bandCount; band++) {
+            const baseY = height * (.16 + band * .175) - scrollOffset * .035 * (band + 1);
+            const amplitude = 32 + band * 13;
+            const color = palette[band % 2];
+
+            ctx.beginPath();
+            for (let x = -40; x <= width + 40; x += 18) {
+                const y = baseY +
+                    Math.sin(x * .0022 + t * .28 + band * 1.4) * amplitude +
+                    Math.sin(x * .0007 - t * .16) * amplitude * .8;
+                if (x <= -40) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = rgba(color, .012 + mix * .012);
+            ctx.lineWidth = 44 + band * 10;
+            ctx.stroke();
+
+            ctx.beginPath();
+            for (let x = -40; x <= width + 40; x += 18) {
+                const y = baseY +
+                    Math.sin(x * .0022 + t * .28 + band * 1.4) * amplitude +
+                    Math.sin(x * .0007 - t * .16) * amplitude * .8;
+                if (x <= -40) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = rgba(color, .075 + mix * .02);
+            ctx.lineWidth = .8;
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    function drawConnections() {
+        const maxDistance = Math.min(128, width * .115);
+        const maxSquared = maxDistance * maxDistance;
+        ctx.save();
+        ctx.lineWidth = .55;
+        for (let i = 0; i < particles.length; i++) {
+            const a = particles[i];
+            if (a.dust) continue;
+            for (let j = i + 1; j < particles.length; j++) {
+                const b = particles[j];
+                if (b.dust) continue;
+                const dx = a.x - b.x;
+                const dy = a.y - b.y;
+                const squared = dx * dx + dy * dy;
+                if (squared < maxSquared) {
+                    const alpha = (1 - squared / maxSquared) * .085;
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.strokeStyle = rgba(palette[0], alpha);
+                    ctx.stroke();
+                }
+            }
+        }
+        ctx.restore();
+    }
+
+    function drawPointerLinks() {
+        if (!pointer.active) return;
+        const reach = 150;
+        ctx.save();
+        ctx.lineWidth = .6;
+        for (const particle of particles) {
+            const dx = particle.x - pointer.x;
+            const dy = particle.y - pointer.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < reach) {
+                ctx.beginPath();
+                ctx.moveTo(pointer.x, pointer.y);
+                ctx.lineTo(particle.x, particle.y);
+                ctx.strokeStyle = rgba(palette[0], (1 - dist / reach) * .13);
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+    }
+
+    function drawSpotlight() {
+        if (!pointer.active) return;
+        const glow = ctx.createRadialGradient(
+            pointer.x, pointer.y, 0,
+            pointer.x, pointer.y, 290
+        );
+        glow.addColorStop(0, rgba(palette[0], .055 * pointer.strength));
+        glow.addColorStop(.5, rgba(palette[1], .022 * pointer.strength));
+        glow.addColorStop(1, rgba(palette[1], 0));
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        ctx.fillStyle = glow;
+        ctx.fillRect(pointer.x - 300, pointer.y - 300, 600, 600);
+        ctx.restore();
+    }
+
+    // ------------------------------------------------------------------
+    // Molecular glyphs
+    // ------------------------------------------------------------------
+
+    function bond(x1, y1, x2, y2, color, alpha, widthPx = 1) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = rgba(color, alpha);
+        ctx.lineWidth = widthPx;
+        ctx.stroke();
+    }
+
+    function atom(x, y, radius, color, alpha) {
+        const glow = ctx.createRadialGradient(x, y, 0, x, y, radius * 4.5);
+        glow.addColorStop(0, rgba(color, alpha * .55));
+        glow.addColorStop(1, rgba(color, 0));
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 4.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = rgba(color, alpha * 2.2);
+        ctx.fill();
+    }
+
+    function drawMolecule(type, x, y, scale, rotation, alpha) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rotation);
+        ctx.scale(scale, scale);
+
+        const cool = palette[0];
+        const warm = palette[1];
+        const cream = palette[2];
+
+        if (type === "NO2") {
+            bond(-26, 10, 0, 0, cool, alpha * .65);
+            bond(26, 10, 0, 0, warm, alpha * .7);
+            bond(-26, 14, 0, 4, warm, alpha * .35);
+            atom(-26, 12, 3.4, warm, alpha);
+            atom(26, 12, 3.4, warm, alpha);
+            atom(0, 0, 4.6, cool, alpha);
+        } else if (type === "O3") {
+            bond(-21, 2, 0, -7, cool, alpha * .6);
+            bond(21, 2, 0, -7, cool, alpha * .6);
+            atom(-21, 3, 3.1, cool, alpha);
+            atom(21, 3, 3.1, cool, alpha);
+            atom(0, -7, 3.9, cream, alpha);
+        } else if (type === "SO2") {
+            bond(-24, -6, 0, 0, warm, alpha * .6);
+            bond(24, -6, 0, 0, warm, alpha * .6);
+            atom(-24, -6, 3.2, warm, alpha);
+            atom(24, -6, 3.2, warm, alpha);
+            atom(0, 0, 4.4, cream, alpha);
+        } else {
+            // A diffuse particulate cluster.
+            const nodes = [
+                [-10, -8], [6, -13], [14, -2], [9, 10], [-3, 13], [-15, 5],
+                [0, 0], [18, 12], [-20, -14], [22, -12]
+            ];
+            for (const [nx, ny] of nodes) {
+                atom(nx, ny, 1.7, warm, alpha * .8);
+            }
+        }
+
+        ctx.font = "500 7px 'JetBrains Mono', ui-monospace, monospace";
+        ctx.fillStyle = rgba(cream, alpha * 1.2);
+        ctx.textAlign = "center";
+        ctx.fillText(type === "PM25" ? "PM2.5" : type, 0, 34);
+        ctx.restore();
+    }
+
+    function drawMolecules() {
+        if (width < 760) return;
+        const t = time * .001;
+        const drift = scrollOffset * .02;
+        const baseAlpha = .28 + mix * .04;
+
+        drawMolecule(
+            "NO2",
+            width * (.79 + Math.sin(t * .038) * .025),
+            height * (.25 + Math.cos(t * .045) * .03) - drift,
+            1.05,
+            Math.sin(t * .3) * .08,
+            baseAlpha
+        );
+        drawMolecule(
+            "O3",
+            width * (.13 + Math.cos(t * .032) * .03),
+            height * (.7 + Math.sin(t * .04) * .03) - drift * .7,
+            .9,
+            -Math.sin(t * .25) * .06,
+            baseAlpha * .9
+        );
+        drawMolecule(
+            "SO2",
+            width * (.9 + Math.sin(t * .026) * .03),
+            height * (.67 + Math.sin(t * .034) * .03) - drift * 1.2,
+            .75,
+            Math.cos(t * .22) * .05,
+            baseAlpha * .75
+        );
+        drawMolecule(
+            "PM25",
+            width * (.22 + Math.sin(t * .03) * .035),
+            height * (.34 + Math.cos(t * .027) * .04) - drift * .8,
+            .95 + mix * .12,
+            Math.sin(t * .18) * .05,
+            baseAlpha * (1 + mix * .35)
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Grain + vignette
+    // ------------------------------------------------------------------
+
+    function drawGrain() {
+        grainCtx.clearRect(0, 0, width, height);
+
+        const tile = document.createElement("canvas");
+        tile.width = 170;
+        tile.height = 170;
+        const tileCtx = tile.getContext("2d");
+        const data = tileCtx.createImageData(170, 170);
+
+        for (let i = 0; i < data.data.length; i += 4) {
+            const value = Math.random() * 255;
+            data.data[i] = value;
+            data.data[i + 1] = value;
+            data.data[i + 2] = value;
+            data.data[i + 3] = 18;
+        }
+
+        tileCtx.putImageData(data, 0, 0);
+        const pattern = grainCtx.createPattern(tile, "repeat");
+        grainCtx.fillStyle = pattern;
+        grainCtx.fillRect(0, 0, width, height);
+    }
+
+    function drawVignette() {
+        const radius = Math.max(width, height) * .78;
+        const vignette = ctx.createRadialGradient(
+            width * .5, height * .48, Math.min(width, height) * .18,
+            width * .5, height * .48, radius
+        );
+        vignette.addColorStop(0, "rgba(4,8,13,0)");
+        vignette.addColorStop(.7, "rgba(4,8,13,.10)");
+        vignette.addColorStop(1, "rgba(4,8,13,.46)");
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, width, height);
+    }
+
+    // ------------------------------------------------------------------
+    // Lifecycle
+    // ------------------------------------------------------------------
 
     function resize() {
         dpr = Math.min(window.devicePixelRatio || 1, 1.6);
         width = window.innerWidth;
         height = window.innerHeight;
 
-        [canvas, grainCanvas].forEach(c => {
-            c.width = Math.floor(width * dpr);
-            c.height = Math.floor(height * dpr);
-            c.style.width = width + "px";
-            c.style.height = height + "px";
-        });
+        for (const element of [canvas, grainCanvas]) {
+            element.width = Math.floor(width * dpr);
+            element.height = Math.floor(height * dpr);
+            element.style.width = width + "px";
+            element.style.height = height + "px";
+        }
 
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         grainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        const count = Math.min(
-            190,
-            Math.max(65, Math.floor(width * height / 8500))
-        );
-
-        particles = Array.from(
-            { length: count },
-            () => new Particle(true)
-        );
-
+        const count = Math.min(185, Math.max(60, Math.floor((width * height) / 9000)));
+        particles = Array.from({ length: count }, () => new Particle(true));
         drawGrain();
     }
 
-    // Subtle atmospheric film grain
-    function drawGrain() {
-        grainCtx.clearRect(0, 0, width, height);
-
-        const tile = document.createElement("canvas");
-        tile.width = 180;
-        tile.height = 180;
-        const tctx = tile.getContext("2d");
-        const data = tctx.createImageData(180, 180);
-
-        for (let i = 0; i < data.data.length; i += 4) {
-            const v = Math.random() * 255;
-            data.data[i] = v;
-            data.data[i + 1] = v;
-            data.data[i + 2] = v;
-            data.data[i + 3] = 20;
+    function updatePalette(dt) {
+        const amount = clamp(dt / 900, .008, .06);
+        for (let i = 0; i < palette.length; i++) {
+            palette[i] = mixColor(palette[i], targetPalette[i], amount);
         }
-
-        tctx.putImageData(data, 0, 0);
-        const pattern = grainCtx.createPattern(tile, "repeat");
-        grainCtx.fillStyle = pattern;
-        grainCtx.fillRect(0, 0, width, height);
-    }
-
-    function drawCurrents() {
-        // Deep atmospheric light fields
-        const fields = [
-            {
-                x: width * (.18 + Math.sin(time * .00012) * .035),
-                y: height * .25,
-                radius: Math.max(width, height) * .46,
-                color: "rgba(43,139,157,.12)"
-            },
-            {
-                x: width * (.82 + Math.cos(time * .0001) * .04),
-                y: height * .42,
-                radius: Math.max(width, height) * .39,
-                color: "rgba(222,104,96,.105)"
-            },
-            {
-                x: width * .55,
-                y: height * (.92 + Math.sin(time * .00016) * .03),
-                radius: Math.max(width, height) * .42,
-                color: "rgba(85,105,173,.11)"
-            }
-        ];
-
-        fields.forEach(f => {
-            const g = ctx.createRadialGradient(
-                f.x, f.y, 0,
-                f.x, f.y, f.radius
-            );
-            g.addColorStop(0, f.color);
-            g.addColorStop(1, "rgba(0,0,0,0)");
-
-            ctx.fillStyle = g;
-            ctx.fillRect(0, 0, width, height);
-        });
-
-        // Broad flowing atmospheric filaments
-        for (let band = 0; band < 5; band++) {
-            ctx.beginPath();
-
-            const baseY = height * (.18 + band * .17);
-            const amplitude = 35 + band * 12;
-
-            for (let x = -30; x <= width + 30; x += 12) {
-                const y =
-                    baseY +
-                    Math.sin(x * .0024 + time * .00032 + band) * amplitude +
-                    Math.sin(x * .0008 - time * .00018) * amplitude * .8;
-
-                if (x === -30) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            }
-
-            ctx.strokeStyle = band % 2 === 0
-                ? "rgba(121,213,211,.045)"
-                : "rgba(241,132,112,.035)";
-            ctx.lineWidth = 1.2;
-            ctx.stroke();
-        }
-    }
-
-    function drawConnections() {
-        const maxDistance = Math.min(135, width * .12);
-
-        for (let i = 0; i < particles.length; i++) {
-            const a = particles[i];
-
-            for (let j = i + 1; j < particles.length; j++) {
-                const b = particles[j];
-                const dx = a.x - b.x;
-                const dy = a.y - b.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-
-                if (dist < maxDistance) {
-                    const alpha = (1 - dist / maxDistance) * .13;
-
-                    ctx.beginPath();
-                    ctx.moveTo(a.x, a.y);
-                    ctx.lineTo(b.x, b.y);
-                    ctx.strokeStyle =
-                        `rgba(121,213,211,${alpha})`;
-                    ctx.lineWidth = .65;
-                    ctx.stroke();
-                }
-            }
-        }
-    }
-
-    function drawMolecule(x, y, scale, phase) {
-        const nodes = [
-            [0, 0],
-            [42, -23],
-            [83, 1],
-            [122, -28],
-            [82, 43],
-            [40, 48]
-        ];
-
-        const rotation = Math.sin(phase) * .09;
-        const cos = Math.cos(rotation);
-        const sin = Math.sin(rotation);
-
-        const transformed = nodes.map(([nx, ny]) => [
-            x + (nx * cos - ny * sin) * scale,
-            y + (nx * sin + ny * cos) * scale
-        ]);
-
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "rgba(121,213,211,.20)";
-
-        [[0,1],[1,2],[2,3],[2,4],[0,5],[5,4]].forEach(([a,b]) => {
-            ctx.beginPath();
-            ctx.moveTo(...transformed[a]);
-            ctx.lineTo(...transformed[b]);
-            ctx.stroke();
-        });
-
-        transformed.forEach(([px, py], i) => {
-            const coral = i === 2 || i === 3;
-            const color = coral ? "241,132,112" : "121,213,211";
-
-            const glow = ctx.createRadialGradient(
-                px, py, 0,
-                px, py, 13 * scale
-            );
-
-            glow.addColorStop(0, `rgba(${color},.35)`);
-            glow.addColorStop(1, `rgba(${color},0)`);
-
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(px, py, 13 * scale, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = `rgba(${color},.9)`;
-            ctx.beginPath();
-            ctx.arc(px, py, (i === 2 ? 3.1 : 2.2) * scale, 0, Math.PI * 2);
-            ctx.fill();
-        });
     }
 
     function render(timestamp) {
@@ -362,50 +685,64 @@ canvas {
         lastFrame = timestamp;
         time += dt;
 
+        updatePalette(dt);
+
+        // Ease the pointer position for a fluid, weighted feel.
+        if (pointer.active) {
+            pointer.x += (pointer.targetX - pointer.x) * .12;
+            pointer.y += (pointer.targetY - pointer.y) * .12;
+            pointer.strength += (1 - pointer.strength) * .045;
+        } else {
+            pointer.strength *= .94;
+        }
+
         ctx.clearRect(0, 0, width, height);
 
-        drawCurrents();
+        drawFields();
+        drawHazeBands();
 
-        particles.forEach(p => p.update(dt));
+        for (const particle of particles) particle.update(dt);
         drawConnections();
-        particles.forEach(p => p.draw());
+        drawPointerLinks();
+        drawRipples();
+        for (const particle of particles) particle.draw();
 
-        // Slow-moving molecular formations
-        drawMolecule(
-            width * (.76 + Math.sin(time * .00013) * .035),
-            height * (.28 + Math.cos(time * .00017) * .04),
-            .78,
-            time * .0003
-        );
-
-        drawMolecule(
-            width * (.18 + Math.cos(time * .00011) * .035),
-            height * (.72 + Math.sin(time * .00014) * .035),
-            .52,
-            -time * .0002
-        );
+        drawMolecules();
+        drawSpotlight();
+        drawVignette();
 
         animationFrame = requestAnimationFrame(render);
     }
 
-    window.addEventListener("resize", resize);
+    function renderStatic() {
+        updatePalette(1000);
+        ctx.clearRect(0, 0, width, height);
+        drawFields();
+        drawHazeBands();
+        for (const particle of particles) {
+            particle.edgeAlpha = 1;
+            particle.draw();
+        }
+        drawMolecules();
+        drawVignette();
+    }
 
-    window.addEventListener("pointermove", e => {
-        pointer.x = e.clientX;
-        pointer.y = e.clientY;
-    }, { passive: true });
+    window.addEventListener("resize", () => {
+        resize();
+        if (reducedMotion) renderStatic();
+    });
 
-    window.addEventListener("pointerleave", () => {
-        pointer.x = -1000;
-        pointer.y = -1000;
+    window.addEventListener("pagehide", () => {
+        if (animationFrame) cancelAnimationFrame(animationFrame);
     });
 
     resize();
 
     if (reducedMotion) {
-        drawCurrents();
-        particles.forEach(p => p.draw());
-        drawConnections();
+        palette[0] = targetPalette[0].slice();
+        palette[1] = targetPalette[1].slice();
+        palette[2] = targetPalette[2].slice();
+        renderStatic();
     } else {
         animationFrame = requestAnimationFrame(render);
     }

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    color-scheme: dark;
+    --ink: #0b1516;
+    --panel: #122324;
+    --paper: #f3f0e7;
+    --muted: #a2aca3;
+    --sage: #86b9a5;
+    --clay: #c9795e;
+    --amber: #d4b06b;
+    --line: rgba(243, 240, 231, .12);
+  }
+  * { box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+  body { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  #lab {
+    height: 560px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 26px;
+    padding: clamp(18px, 3vw, 28px);
+    background:
+      radial-gradient(55% 90% at 88% 2%, rgba(115, 167, 143, .14), transparent 70%),
+      radial-gradient(48% 78% at 4% 100%, rgba(191, 121, 88, .12), transparent 72%),
+      linear-gradient(140deg, rgba(22, 40, 40, .98), rgba(9, 20, 21, .98));
+    box-shadow: 0 24px 66px rgba(0, 0, 0, .28), inset 0 1px rgba(255,255,255,.05);
+  }
+  .heading { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+  .eyebrow { display: flex; gap: 8px; align-items: center; color: var(--sage); font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .16em; text-transform: uppercase; }
+  .eyebrow::before { content: ""; display: block; width: 22px; height: 1px; background: currentColor; }
+  h1 { margin: 8px 0 0; color: var(--paper); font-family: Georgia, serif; font-size: clamp(22px, 3.2vw, 31px); font-weight: 400; letter-spacing: -.04em; }
+  h1 em { color: var(--clay); font-weight: 400; }
+  .instruction { max-width: 230px; color: var(--muted); font: 500 8px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-align: right; text-transform: uppercase; }
+  .choices { display: flex; gap: 8px; overflow-x: auto; padding: 17px 1px 15px; scrollbar-width: thin; }
+  .choice {
+    flex: 0 0 103px;
+    min-height: 58px;
+    padding: 10px;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: rgba(255,255,255,.025);
+    text-align: left;
+    cursor: pointer;
+    transition: transform .16s ease, background .16s ease, border-color .16s ease;
+  }
+  .choice:hover, .choice:focus-visible { transform: translateY(-1px); border-color: rgba(134,185,165,.65); outline: none; }
+  .choice[aria-pressed="true"] { color: var(--paper); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent); }
+  .choice-formula { display: block; color: var(--accent); font: 600 17px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.06em; }
+  .choice-name { display: block; margin-top: 7px; font-size: 9px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .content { display: grid; grid-template-columns: minmax(190px, .77fr) minmax(0, 1.25fr); gap: 15px; height: calc(100% - 147px); }
+  .molecule-panel, .details { min-height: 0; border: 1px solid var(--line); border-radius: 18px; background: rgba(5, 15, 16, .34); }
+  .molecule-panel { position: relative; display: grid; place-items: center; overflow: hidden; }
+  .molecule-panel::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--accent) 17%, transparent), transparent 53%); }
+  #molecule { position: relative; width: min(100%, 250px); padding: 10px 14px 4px; }
+  #molecule svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 10px 22px rgba(0,0,0,.28)); }
+  .molecule-caption { position: absolute; bottom: 13px; left: 15px; right: 15px; color: var(--muted); font: 500 7px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-align: center; text-transform: uppercase; }
+  .details { display: flex; flex-direction: column; padding: 16px 17px; overflow: hidden; }
+  .detail-top { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; }
+  .detail-kicker { color: var(--muted); font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .13em; text-transform: uppercase; }
+  .detail-title { margin-top: 6px; color: var(--paper); font-family: Georgia, serif; font-size: 22px; letter-spacing: -.035em; }
+  .detail-formula { margin-top: 7px; color: var(--accent); font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .02em; }
+  .reading { flex: 0 0 auto; min-width: 96px; padding: 8px 9px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 11px; background: color-mix(in srgb, var(--accent) 8%, transparent); text-align: right; }
+  .reading-value { display: block; color: var(--accent); font: 600 18px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.07em; }
+  .reading-label { display: block; margin-top: 4px; color: var(--muted); font: 500 7px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
+  .role { margin: 12px 0 0; color: #d2d7d0; font-size: 11px; line-height: 1.56; }
+  .fact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: auto; }
+  .fact { min-height: 88px; padding: 11px; border: 1px solid rgba(243,240,231,.09); border-radius: 12px; background: rgba(255,255,255,.025); }
+  .fact-label { display: block; color: var(--accent); font: 600 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .13em; text-transform: uppercase; }
+  .fact p { margin: 8px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+  .fact b { color: var(--paper); font-weight: 600; }
+  .atom { stroke: rgba(255,255,255,.32); stroke-width: 1.4; }
+  .bond { stroke: #d9ded6; stroke-width: 4; stroke-linecap: round; opacity: .82; }
+  .bond-light { stroke: #d9ded6; stroke-width: 1.8; stroke-linecap: round; opacity: .72; }
+  .atom-label { fill: #071313; font: 700 18px ui-monospace, SFMono-Regular, Menlo, monospace; text-anchor: middle; dominant-baseline: central; }
+  .particle { fill: var(--accent); stroke: rgba(255,255,255,.55); stroke-width: 1; }
+  @media (max-width: 620px) {
+    #lab { height: 560px; padding: 17px; border-radius: 20px; }
+    .instruction { display: none; }
+    .content { grid-template-columns: 1fr; height: calc(100% - 145px); }
+    .molecule-panel { min-height: 170px; }
+    .molecule-caption { bottom: 8px; }
+    .details { min-height: 210px; }
+    .fact-grid { margin-top: 10px; }
+  }
+</style>
+</head>
+<body>
+<section id="lab" aria-labelledby="lab-title">
+  <header class="heading">
+    <div>
+      <div class="eyebrow">Interactive molecular field guide</div>
+      <h1 id="lab-title">What’s in the <em>air?</em></h1>
+    </div>
+    <div class="instruction">Choose a pollutant to inspect its structure, sources and practical reduction levers.</div>
+  </header>
+  <div class="choices" id="choices" role="group" aria-label="Choose a pollutant"></div>
+  <div class="content">
+    <div class="molecule-panel" id="molecule-panel">
+      <div id="molecule" aria-label="Pollutant structure"></div>
+      <div class="molecule-caption" id="molecule-caption">Interactive structure</div>
+    </div>
+    <article class="details" id="details" aria-live="polite"></article>
+  </div>
+</section>
+<script>
+(() => {
+  "use strict";
+  const STATE = __AIRSENSE_CHEMISTRY_STATE__;
+  const values = (STATE && STATE.readings) || {};
+  const safeNumber = value => Number.isFinite(Number(value)) ? Number(value) : null;
+  const format = (value, unit = "µg/m³") => {
+    const number = safeNumber(value);
+    return number === null ? "Not measured" : `${number >= 100 ? number.toFixed(0) : number.toFixed(1)} ${unit}`;
+  };
+
+  const structures = {
+    pm2_5: `
+      <svg viewBox="0 0 260 190" role="img" aria-label="A collection of fine particulate matter particles">
+        <g opacity=".18" fill="none" stroke="currentColor"><circle cx="130" cy="94" r="72"/><circle cx="130" cy="94" r="50"/><circle cx="130" cy="94" r="28"/></g>
+        <circle class="particle" cx="91" cy="79" r="20"/><circle class="particle" cx="137" cy="62" r="15"/><circle class="particle" cx="166" cy="101" r="24"/><circle class="particle" cx="111" cy="122" r="14"/><circle class="particle" cx="71" cy="119" r="10"/><circle class="particle" cx="151" cy="137" r="9"/>
+        <text x="130" y="172" fill="currentColor" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" letter-spacing="2">MIXED FINE PARTICLES</text>
+      </svg>`,
+    nitrogen_dioxide: `
+      <svg viewBox="0 0 260 190" role="img" aria-label="Nitrogen dioxide molecule: one nitrogen and two oxygen atoms">
+        <path class="bond" d="M128 94 78 44"/><path class="bond-light" d="M137 86 87 36"/><path class="bond" d="M132 97 187 50"/>
+        <circle class="atom" fill="#d4b06b" cx="130" cy="96" r="31"/><circle class="atom" fill="#c9795e" cx="72" cy="38" r="29"/><circle class="atom" fill="#c9795e" cx="193" cy="45" r="29"/>
+        <text class="atom-label" x="130" y="96">N</text><text class="atom-label" x="72" y="38">O</text><text class="atom-label" x="193" y="45">O</text>
+        <text x="130" y="170" fill="currentColor" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" letter-spacing="2">BENT MOLECULE</text>
+      </svg>`,
+    ozone: `
+      <svg viewBox="0 0 260 190" role="img" aria-label="Ozone molecule: three oxygen atoms">
+        <path class="bond" d="M65 100 128 70"/><path class="bond-light" d="M132 79 194 107"/>
+        <circle class="atom" fill="#86b9a5" cx="59" cy="103" r="29"/><circle class="atom" fill="#d4b06b" cx="130" cy="70" r="31"/><circle class="atom" fill="#86b9a5" cx="201" cy="110" r="29"/>
+        <text class="atom-label" x="59" y="103">O</text><text class="atom-label" x="130" y="70">O</text><text class="atom-label" x="201" y="110">O</text>
+        <text x="130" y="170" fill="currentColor" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" letter-spacing="2">RESONANCE STRUCTURE</text>
+      </svg>`,
+    sulphur_dioxide: `
+      <svg viewBox="0 0 260 190" role="img" aria-label="Sulphur dioxide molecule: one sulphur and two oxygen atoms">
+        <path class="bond" d="M129 94 78 51"/><path class="bond-light" d="M138 85 87 42"/><path class="bond" d="M132 99 185 55"/><path class="bond-light" d="M140 108 193 64"/>
+        <circle class="atom" fill="#d4b06b" cx="130" cy="96" r="32"/><circle class="atom" fill="#c9795e" cx="72" cy="46" r="28"/><circle class="atom" fill="#c9795e" cx="191" cy="50" r="28"/>
+        <text class="atom-label" x="130" y="96">S</text><text class="atom-label" x="72" y="46">O</text><text class="atom-label" x="191" y="50">O</text>
+        <text x="130" y="170" fill="currentColor" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" letter-spacing="2">SULPHUR OXIDE</text>
+      </svg>`,
+    carbon_monoxide: `
+      <svg viewBox="0 0 260 190" role="img" aria-label="Carbon monoxide molecule: carbon triple bonded to oxygen">
+        <path class="bond" d="M102 88 158 88"/><path class="bond-light" d="M102 98 158 98"/><path class="bond-light" d="M102 108 158 108"/>
+        <circle class="atom" fill="#86b9a5" cx="74" cy="98" r="31"/><circle class="atom" fill="#c9795e" cx="186" cy="98" r="31"/>
+        <text class="atom-label" x="74" y="98">C</text><text class="atom-label" x="186" y="98">O</text>
+        <text x="130" y="170" fill="currentColor" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" letter-spacing="2">TRIPLE BOND</text>
+      </svg>`,
+    voc: `
+      <svg viewBox="0 0 260 190" role="img" aria-label="Simplified aromatic volatile organic compound structure">
+        <polygon points="130,39 179,67 179,123 130,151 81,123 81,67" fill="rgba(134,185,165,.12)" stroke="#d4b06b" stroke-width="4"/>
+        <circle cx="130" cy="95" r="34" fill="none" stroke="#c9795e" stroke-width="3" stroke-dasharray="5 5"/>
+        <g fill="#d4b06b"><circle cx="130" cy="39" r="7"/><circle cx="179" cy="67" r="7"/><circle cx="179" cy="123" r="7"/><circle cx="130" cy="151" r="7"/><circle cx="81" cy="123" r="7"/><circle cx="81" cy="67" r="7"/></g>
+        <text x="130" y="175" fill="currentColor" text-anchor="middle" font-family="ui-monospace, monospace" font-size="10" letter-spacing="2">ONE VOC EXAMPLE</text>
+      </svg>`,
+  };
+
+  const pollutants = [
+    { id: "pm2_5", formula: "PM₂.₅", name: "Fine particles", accent: "#c9795e", value: values.pm2_5, role: "A particle mixture smaller than 2.5 micrometres. It is not one molecule; soot, dust, salts, metals and organic material can all be present.", arises: "Combustion, road dust and fires emit particles directly. Gases such as SO₂ and NOₓ can also react in air to make secondary particles.", reduce: "Cut open burning and diesel soot, electrify transport where possible, control industrial stacks, and use cleaner cooking and power." },
+    { id: "nitrogen_dioxide", formula: "NO₂", name: "Nitrogen dioxide", accent: "#d4b06b", value: values.nitrogen_dioxide, role: "A reactive nitrogen oxide and a useful marker of nearby combustion. It also helps form ozone and nitrate particles.", arises: "High-temperature engines, generators, power plants and industrial burners combine nitrogen and oxygen from the air.", reduce: "Use cleaner transport and electricity, avoid unnecessary idling, maintain combustion equipment, and apply NOₓ controls at large sources." },
+    { id: "ozone", formula: "O₃", name: "Ground-level ozone", accent: "#86b9a5", value: values.ozone, role: "A reactive gas that can irritate airways. Near the ground, it is a secondary pollutant, not the protective ozone high in the stratosphere.", arises: "Sunlight drives reactions between NOₓ and volatile organic compounds. It often increases on warm, sunny afternoons and can travel far from its sources.", reduce: "Lower NOₓ and VOC emissions together: cleaner vehicles, fewer solvent vapours, vapour recovery, cleaner industry and lower fossil-fuel combustion." },
+    { id: "sulphur_dioxide", formula: "SO₂", name: "Sulphur dioxide", accent: "#b89bc3", value: values.sulphur_dioxide, role: "A sulfur-containing gas that can directly irritate the respiratory system and form sulfate particles downwind.", arises: "Burning sulfur-containing coal and oil, metal smelting and some industrial processes release SO₂.", reduce: "Use low-sulfur fuels and clean power, install flue-gas desulfurization, improve industrial fuel quality and enforce stack controls." },
+    { id: "carbon_monoxide", formula: "CO", name: "Carbon monoxide", accent: "#9bb7bd", value: values.carbon_monoxide, role: "A colorless gas produced when fuels do not burn completely. Outdoor levels often track traffic and incomplete combustion sources.", arises: "Vehicle exhaust, generators, biomass burning and poorly ventilated fuel use can all make CO.", reduce: "Maintain engines and generators, avoid indoor or enclosed combustion, use cleaner stoves, and prevent open burning." },
+    { id: "voc", formula: "VOC", name: "Volatile organics", accent: "#d38d79", value: null, role: "A large family of carbon-based gases. The diagram shows an aromatic example; real VOC mixtures vary widely.", arises: "Fuel evaporation, solvents, paints, industry, cooking and vegetation can release VOCs. Some react quickly to help make ozone and secondary particles.", reduce: "Choose low-VOC paints and cleaners, capture fuel vapours, seal solvent containers, and improve industrial leak detection and ventilation." },
+  ];
+
+  const choices = document.getElementById("choices");
+  const molecule = document.getElementById("molecule");
+  const panel = document.getElementById("molecule-panel");
+  const details = document.getElementById("details");
+  const caption = document.getElementById("molecule-caption");
+  let active = pollutants[0];
+
+  function render() {
+    choices.innerHTML = pollutants.map(item => `
+      <button type="button" class="choice" data-id="${item.id}" aria-pressed="${item.id === active.id}" style="--accent:${item.accent}">
+        <span class="choice-formula">${item.formula}</span><span class="choice-name">${item.name}</span>
+      </button>
+    `).join("");
+    panel.style.setProperty("--accent", active.accent);
+    molecule.style.color = active.accent;
+    molecule.innerHTML = structures[active.id];
+    caption.textContent = active.id === "pm2_5" ? "PM₂.₅ is a mixture, not a single molecule" : "Simplified structural view · bonds and atoms";
+    details.innerHTML = `
+      <div class="detail-top">
+        <div><div class="detail-kicker">Pollutant profile</div><div class="detail-title">${active.name}</div><div class="detail-formula">${active.formula}</div></div>
+        <div class="reading"><span class="reading-value">${format(active.value)}</span><span class="reading-label">Reading now</span></div>
+      </div>
+      <p class="role">${active.role}</p>
+      <div class="fact-grid">
+        <div class="fact"><span class="fact-label">Why it occurs</span><p>${active.arises}</p></div>
+        <div class="fact"><span class="fact-label">What helps</span><p>${active.reduce}</p></div>
+      </div>
+    `;
+    choices.querySelectorAll(".choice").forEach(button => {
+      button.addEventListener("click", () => { active = pollutants.find(item => item.id === button.dataset.id) || active; render(); });
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
