@@ -49,7 +49,7 @@ st.set_page_config(
     page_title="AirSense — Atmospheric Intelligence",
     page_icon="🌬️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 POLLUTANT_LABELS = {
@@ -119,11 +119,11 @@ def theme_chart(chart: alt.Chart, height: int = 320):
         chart.properties(height=height, background="transparent")
         .configure_view(strokeOpacity=0)
         .configure_axis(
-            labelColor="#93A2B2",
-            titleColor="#6F7F90",
-            gridColor="rgba(244,237,224,.06)",
-            domainColor="rgba(244,237,224,.12)",
-            tickColor="rgba(244,237,224,.12)",
+            labelColor="#5B7265",
+            titleColor="#7C9184",
+            gridColor="rgba(18,74,46,.08)",
+            domainColor="rgba(18,74,46,.16)",
+            tickColor="rgba(18,74,46,.16)",
             labelFont="JetBrains Mono",
             titleFont="JetBrains Mono",
             labelFontSize=9,
@@ -132,8 +132,8 @@ def theme_chart(chart: alt.Chart, height: int = 320):
             titlePadding=8,
         )
         .configure_legend(
-            labelColor="#93A2B2",
-            titleColor="#6F7F90",
+            labelColor="#5B7265",
+            titleColor="#7C9184",
             labelFont="JetBrains Mono",
             titleFont="JetBrains Mono",
             labelFontSize=9,
@@ -180,14 +180,14 @@ def forecast_chart(frame: pd.DataFrame, threshold: int) -> alt.Chart:
         y1=1,
         y2=0,
         stops=[
-            alt.GradientStop(color="rgba(111,227,214,0)", offset=0),
-            alt.GradientStop(color="rgba(111,227,214,.20)", offset=1),
+            alt.GradientStop(color="rgba(31,122,79,0)", offset=0),
+            alt.GradientStop(color="rgba(31,122,79,.20)", offset=1),
         ],
     )
 
     area = base.mark_area(interpolate="monotone", color=gradient)
-    line = base.mark_line(interpolate="monotone", color="#F4EDE0", strokeWidth=1.9)
-    points = base.mark_circle(size=52, stroke="#060B12", strokeWidth=1.1).encode(
+    line = base.mark_line(interpolate="monotone", color="#1F7A4F", strokeWidth=1.9)
+    points = base.mark_circle(size=52, stroke="#FFFFFF", strokeWidth=1.1).encode(
         color=alt.Color(
             "category:N",
             scale=alt.Scale(domain=domain, range=palette),
@@ -196,7 +196,7 @@ def forecast_chart(frame: pd.DataFrame, threshold: int) -> alt.Chart:
     )
     rule = (
         alt.Chart(pd.DataFrame({"threshold": [threshold]}))
-        .mark_rule(color="#FF8069", strokeDash=[4, 4], strokeWidth=1)
+        .mark_rule(color="#B4553F", strokeDash=[4, 4], strokeWidth=1)
         .encode(y="threshold:Q")
     )
     return theme_chart(area + line + points + rule, height=330)
@@ -219,7 +219,7 @@ def backtest_chart(frame: pd.DataFrame) -> alt.Chart:
                 "Series:N",
                 scale=alt.Scale(
                     domain=["Observed", "Model", "Persistence"],
-                    range=["#F4EDE0", "#6FE3D6", "#6F7F90"],
+                    range=["#1F7A4F", "#2C9D68", "#8BA295"],
                 ),
                 legend=alt.Legend(orient="top", title=None),
             ),
@@ -260,7 +260,7 @@ def importance_chart(importance: dict) -> alt.Chart:
             y=alt.Y("Feature:N", title=None, sort=None),
             color=alt.Color(
                 "Importance:Q",
-                scale=alt.Scale(range=["#35586B", "#6FE3D6", "#E9BB78"]),
+                scale=alt.Scale(range=["#CFE6D8", "#2C9D68", "#1F7A4F"]),
                 legend=None,
             ),
             tooltip=[
@@ -269,7 +269,7 @@ def importance_chart(importance: dict) -> alt.Chart:
             ],
         )
     )
-    labels = bars.mark_text(align="left", dx=5, color="#93A2B2", font="JetBrains Mono", fontSize=8.5).encode(
+    labels = bars.mark_text(align="left", dx=5, color="#5B7265", font="JetBrains Mono", fontSize=8.5).encode(
         text=alt.Text("Importance:Q", format=".0%")
     )
     return theme_chart(bars + labels, height=260)
@@ -278,7 +278,7 @@ def importance_chart(importance: dict) -> alt.Chart:
 def surface_chart(frame: pd.DataFrame) -> alt.Chart:
     chart = (
         alt.Chart(frame)
-        .mark_rect(cornerRadius=2, stroke="#08111A", strokeWidth=.6)
+        .mark_rect(cornerRadius=2, stroke="#FFFFFF", strokeWidth=.6)
         .encode(
             x=alt.X("Sunlight:Q", title="Relative sunlight", scale=alt.Scale(domain=[0, 100])),
             x2=alt.X2("Sunlight end:Q"),
@@ -287,7 +287,7 @@ def surface_chart(frame: pd.DataFrame) -> alt.Chart:
             color=alt.Color(
                 "Index:Q",
                 title="Index",
-                scale=alt.Scale(domain=[0, 35, 70, 100], range=["#0B1422", "#2BB3A3", "#E9BB78", "#F18470"]),
+                scale=alt.Scale(domain=[0, 35, 70, 100], range=["#EAF5EE", "#2FAE77", "#A87C25", "#C4513F"]),
                 legend=alt.Legend(orient="right", gradientLength=150),
             ),
             tooltip=[
@@ -304,7 +304,7 @@ def exposure_chart(pm25, ventilation: float, minutes: int, max_minutes: int = 24
     curve = exposure_curve(pm25, ventilation, max_minutes=max_minutes, step=10)
     area = (
         alt.Chart(curve)
-        .mark_area(color="#6FE3D6", opacity=.10, interpolate="monotone")
+        .mark_area(color="#1F7A4F", opacity=.10, interpolate="monotone")
         .encode(
             x=alt.X("minutes:Q", title="Minutes exposed"),
             y=alt.Y("dose_ug:Q", title="Inhaled PM₂.₅ (µg)"),
@@ -312,7 +312,7 @@ def exposure_chart(pm25, ventilation: float, minutes: int, max_minutes: int = 24
     )
     dose = (
         alt.Chart(curve)
-        .mark_line(color="#6FE3D6", strokeWidth=2, interpolate="monotone")
+        .mark_line(color="#1F7A4F", strokeWidth=2, interpolate="monotone")
         .encode(
             x="minutes:Q",
             y="dose_ug:Q",
@@ -324,12 +324,12 @@ def exposure_chart(pm25, ventilation: float, minutes: int, max_minutes: int = 24
     )
     reference = (
         alt.Chart(curve)
-        .mark_line(color="#E9BB78", strokeDash=[5, 4], strokeWidth=1.4, interpolate="monotone")
+        .mark_line(color="#A87C25", strokeDash=[5, 4], strokeWidth=1.4, interpolate="monotone")
         .encode(x="minutes:Q", y="reference_ug:Q")
     )
     marker = (
         alt.Chart(pd.DataFrame({"minutes": [minutes]}))
-        .mark_rule(color="#FF8069", strokeDash=[3, 3], strokeWidth=1)
+        .mark_rule(color="#B4553F", strokeDash=[3, 3], strokeWidth=1)
         .encode(x="minutes:Q")
     )
     return theme_chart(area + dose + reference + marker, height=300)
@@ -657,7 +657,7 @@ if globe_path.exists():
             "aqi": globe_number(current_aqi),
             "pm25": globe_number(current_values.get("pm2_5")),
             "category": band.get("name", "Unavailable"),
-            "color": band.get("color", "#8795A6"),
+            "color": band.get("color", "#8BA295"),
             "updated": updated_label,
             "is_demo": demo_mode,
         }
@@ -706,10 +706,10 @@ if alert_active:
 
 kpi_columns = st.columns(4, gap="small")
 kpi_specs = [
-    ("pm2_5", "PM₂.₅", "#C9795E", "Primary fine-particle signal"),
-    ("pm10", "PM₁₀", "#D4B06B", "Coarse-particle signal"),
-    ("nitrogen_dioxide", "NO₂", "#86B9A5", "Traffic and combustion tracer"),
-    ("ozone", "O₃", "#A5A0C7", "Photochemical product"),
+    ("pm2_5", "PM₂.₅", "#1F7A4F", "Primary fine-particle signal"),
+    ("pm10", "PM₁₀", "#A87C25", "Coarse-particle signal"),
+    ("nitrogen_dioxide", "NO₂", "#2C9D68", "Traffic and combustion tracer"),
+    ("ozone", "O₃", "#6A82A8", "Photochemical product"),
 ]
 for column, (key, label, accent, note) in zip(kpi_columns, kpi_specs):
     with column:
@@ -809,13 +809,13 @@ with tracker_tab:
                     "CLEAN HOURS",
                     f'{weekly["clean_hours"]}',
                     f'of {weekly["total_hours"]} hours ≤ 50 · {weekly["clean_share"]:.0f}%',
-                    "#6FE3D6",
+                    "#1F7A4F",
                 ),
                 (
                     "24H TREND",
                     f'{trend["delta"]:+.0f}%' if trend.get("available") else "—",
                     trend.get("text", "Trend unavailable"),
-                    "#6FE3D6" if trend.get("direction") == "down" else ("#FF8069" if trend.get("direction") == "up" else "#93A2B2"),
+                    "#1F7A4F" if trend.get("direction") == "down" else ("#B4553F" if trend.get("direction") == "up" else "#7C9184"),
                 ),
             ]
         )
@@ -839,9 +839,9 @@ with tracker_tab:
                 ui.stats_grid(
                     [
                         ("US AQI · NOW", ui.fmt(us_value), "Provider scale", band["color"]),
-                        ("EUROPEAN AQI · NOW", ui.fmt(eu_value), "Different scale · not comparable", "#93A2B2"),
-                        ("PROVIDER", "OPEN-METEO", "CAMS-based model layer", "#6FE3D6"),
-                        ("REFERENCE", "WHO 2021", "24h / 8h guidelines", "#E9BB78"),
+                        ("EUROPEAN AQI · NOW", ui.fmt(eu_value), "Different scale · not comparable", "#7C9184"),
+                        ("PROVIDER", "OPEN-METEO", "CAMS-based model layer", "#1F7A4F"),
+                        ("REFERENCE", "WHO 2021", "24h / 8h guidelines", "#A87C25"),
                     ]
                 ),
             )
@@ -949,7 +949,7 @@ with health_tab:
 
     with result_col:
         ratio = stats["ratio"]
-        ratio_band_color = "#3ECF8E" if ratio <= 1 else ("#F5C451" if ratio <= 2 else ("#F59E5B" if ratio <= 4 else "#EF6E6E"))
+        ratio_band_color = "#2FAE77" if ratio <= 1 else ("#B08A1F" if ratio <= 2 else ("#C9752C" if ratio <= 4 else "#CF5150"))
         metric_columns = st.columns(3, gap="small")
         with metric_columns[0]:
             st.html(
@@ -958,7 +958,7 @@ with health_tab:
                     f'{stats["dose_ug"]:.1f}',
                     "µg",
                     f'{minutes} min · {ventilation:.0f} L/min',
-                    "#FF8069",
+                    "#B4553F",
                 ),
             )
         with metric_columns[1]:
@@ -968,7 +968,7 @@ with health_tab:
                     f'{stats["volume_m3"]:.2f}',
                     "m³",
                     "Approximate ventilation volume",
-                    "#6FE3D6",
+                    "#1F7A4F",
                 ),
             )
         with metric_columns[2]:
@@ -1471,17 +1471,17 @@ with about_tab:
         (
             "WHAT IT DOES",
             "Live AQI tracking, a 48-hour category forecast, a seven-day hourly pulse, WHO guideline comparisons, a personal inhaled-dose lab and a cleanest-window finder.",
-            "#6FE3D6",
+            "#1F7A4F",
         ),
         (
             "WHAT POWERS IT",
             "Open-Meteo Air Quality (CAMS-based model data), a scikit-learn Random Forest baseline, a conceptual ozone response surface, and an optional local or hosted language model.",
-            "#FF8069",
+            "#B4553F",
         ),
         (
             "WHAT IT IS NOT",
             "Not a regulatory monitor. Not an official CPCB or EPA AQI forecast. Not a medical device. Not a chemical-kinetics solver. Not a substitute for local public-health guidance.",
-            "#E9BB78",
+            "#A87C25",
         ),
     ]
     about_html = "".join(

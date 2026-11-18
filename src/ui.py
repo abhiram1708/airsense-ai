@@ -44,17 +44,17 @@ def fmt(value, digits: int = 1, fallback: str = "—") -> str:
 
 def ratio_color(ratio: float | None) -> str:
     if ratio is None:
-        return "#8795A6"
+        return "#8BA295"
     if ratio <= 1:
-        return "#3ECF8E"
+        return "#2FAE77"
     if ratio <= 2:
-        return "#F5C451"
+        return "#B08A1F"
     if ratio <= 4:
-        return "#F59E5B"
-    return "#EF6E6E"
+        return "#C9752C"
+    return "#CF5150"
 
 
-def sparkline_svg(values, color: str = "#6FE3D6", width: int = 160, height: int = 42) -> str:
+def sparkline_svg(values, color: str = "#1F7A4F", width: int = 160, height: int = 42) -> str:
     clean = [float(value) for value in values if not is_missing(value)]
     if len(clean) < 2:
         return ""
@@ -89,10 +89,10 @@ def sparkline_svg(values, color: str = "#6FE3D6", width: int = 160, height: int 
 def brand_markup() -> str:
     mark_svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">'
-        '<circle cx="16" cy="16" r="13" stroke="#6FE3D6" stroke-opacity=".28" stroke-width="1.2"/>'
-        '<circle cx="16" cy="16" r="8" stroke="#6FE3D6" stroke-opacity=".5" stroke-width="1.2"/>'
-        '<circle cx="16" cy="16" r="3" fill="#6FE3D6"/>'
-        '<path d="M16 3v6M29 16h-5M16 29v-6M3 16h5" stroke="#6FE3D6" stroke-width="1.2"/>'
+        '<circle cx="16" cy="16" r="13" stroke="#1F7A4F" stroke-opacity=".28" stroke-width="1.2"/>'
+        '<circle cx="16" cy="16" r="8" stroke="#1F7A4F" stroke-opacity=".5" stroke-width="1.2"/>'
+        '<circle cx="16" cy="16" r="3" fill="#1F7A4F"/>'
+        '<path d="M16 3v6M29 16h-5M16 29v-6M3 16h5" stroke="#1F7A4F" stroke-width="1.2"/>'
         "</svg>"
     )
     return f"""
@@ -182,15 +182,15 @@ def gauge_html(value, band: dict, trend: dict, source: str, updated: str) -> str
         x2, y2 = _polar(130, 116, 110, angle)
         ticks.append(
             f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
-            f'stroke="rgba(244,237,224,.22)" stroke-width="1"/>'
+            f'stroke="rgba(18,74,46,.22)" stroke-width="1"/>'
         )
 
     marker = ""
     if numeric is not None:
         marker_x, marker_y = _polar(130, 116, 92, marker_angle)
         marker = (
-            f'<circle cx="{marker_x:.2f}" cy="{marker_y:.2f}" r="7.5" fill="#0A121C" '
-            f'stroke="{band["color"]}" stroke-width="3" style="filter:drop-shadow(0 0 8px {band["color"]})"/>'
+            f'<circle cx="{marker_x:.2f}" cy="{marker_y:.2f}" r="7.5" fill="#FFFFFF" '
+            f'stroke="{band["color"]}" stroke-width="3" style="filter:drop-shadow(0 2px 5px rgba(22,68,44,.24))"/>'
             f'<circle cx="{marker_x:.2f}" cy="{marker_y:.2f}" r="2.2" fill="{band["color"]}"/>'
         )
 
@@ -210,7 +210,7 @@ def gauge_html(value, band: dict, trend: dict, source: str, updated: str) -> str
 
     gauge_svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 196">'
-        f'<path d="{_arc_path(130, 116, 92, 150, 390)}" fill="none" stroke="rgba(244,237,224,.06)" '
+        f'<path d="{_arc_path(130, 116, 92, 150, 390)}" fill="none" stroke="rgba(18,74,46,.08)" '
         f'stroke-width="13" stroke-linecap="round"/>'
         f'{"".join(arcs)}{"".join(ticks)}{marker}'
         "</svg>"
@@ -403,7 +403,7 @@ def window_card_html(window: dict, number: int) -> str:
     """
 
 
-def stat_card(label: str, value: str, sub: str, accent: str = "#6FE3D6") -> str:
+def stat_card(label: str, value: str, sub: str, accent: str = "#1F7A4F") -> str:
     return f"""
     <div class="stat-card" style="--accent:{accent}">
       <div class="stat-label">{esc(label)}</div>
@@ -465,12 +465,12 @@ def exposure_metric(label: str, value: str, unit: str, sub: str, accent: str) ->
 
 def index_meter(value: float, summary: str, interpretation: str) -> str:
     value = max(0.0, min(100.0, float(value)))
-    color = "#6FE3D6" if value < 34 else ("#E9BB78" if value < 67 else "#F18470")
+    color = "#2FAE77" if value < 34 else ("#B08A1F" if value < 67 else "#C4513F")
     return f"""
     <div class="glass-card index-card" style="--accent:{color}">
       <div class="card-topline"><span class="card-kicker">RELATIVE RESPONSE INDEX</span><span class="mono-chip">0–100 · NOT CONCENTRATION</span></div>
       <div class="index-value">{value:.0f}<span>/ 100</span></div>
-      <div class="index-track"><span style="width:{value:.1f}%;background:linear-gradient(90deg,#6FE3D6,#E9BB78,#F18470)"></span></div>
+      <div class="index-track"><span style="width:{value:.1f}%;background:linear-gradient(90deg,#2FAE77,#C9A227,#C4513F)"></span></div>
       <p class="index-summary">{esc(summary)}</p>
       <div class="health-divider"></div>
       <p class="index-interpretation">{esc(interpretation)}</p>

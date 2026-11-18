@@ -5,39 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
-    color-scheme: dark;
-    --ink: #0b1516;
-    --cream: #f3f0e7;
-    --muted: #a2aca3;
-    --cyan: #86b9a5;
-    --line: rgba(243, 240, 231, .13);
+    color-scheme: light;
+    --paper: #ffffff;
+    --wash: #f4faf6;
+    --ink: #10241a;
+    --ink-soft: #2d4638;
+    --muted: #5f7568;
+    --faint: #8ba295;
+    --green: #1f7a4f;
+    --green-bright: #2c9d68;
+    --green-wash: rgba(31, 122, 79, .08);
+    --line: rgba(18, 74, 46, .14);
+    --line-soft: rgba(18, 74, 46, .075);
+    --shadow: 0 22px 60px rgba(22, 68, 44, .13);
   }
   * { box-sizing: border-box; }
   html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
-  body { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); }
   #globe-shell {
     position: relative;
     width: 100%;
-    height: 640px;
+    height: 100%;
+    min-height: 560px;
     overflow: hidden;
     isolation: isolate;
     border: 1px solid var(--line);
-    border-radius: 30px;
+    border-radius: 28px;
     background:
-      radial-gradient(80% 100% at 50% 44%, rgba(37, 74, 67, .43), transparent 63%),
-      linear-gradient(135deg, rgba(16, 30, 30, .98), rgba(8, 16, 17, .98));
-    box-shadow: 0 32px 90px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .06);
+      radial-gradient(58% 70% at 50% 42%, rgba(67, 168, 116, .10), transparent 68%),
+      radial-gradient(40% 58% at 88% 10%, rgba(126, 196, 155, .14), transparent 72%),
+      radial-gradient(42% 60% at 8% 92%, rgba(180, 224, 196, .18), transparent 72%),
+      linear-gradient(168deg, #ffffff 0%, #f7fcf8 56%, #eef8f1 100%);
+    box-shadow: 0 24px 70px rgba(24, 74, 48, .10), inset 0 1px 0 rgba(255, 255, 255, .9);
   }
   #globe-shell::before {
     content: "";
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 3;
-    background:
-      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px) 0 0 / 52px 52px,
-      linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px) 0 0 / 52px 52px;
-    mask-image: linear-gradient(90deg, rgba(0,0,0,.35), transparent 36%, transparent 64%, rgba(0,0,0,.25));
+    z-index: 0;
+    background-image: radial-gradient(rgba(31, 122, 79, .13) 1px, transparent 1px);
+    background-size: 26px 26px;
+    mask-image: radial-gradient(78% 88% at 50% 50%, #000 0%, transparent 82%);
     opacity: .5;
   }
   #globe-canvas {
@@ -48,18 +57,15 @@
     touch-action: none;
     cursor: grab;
     outline: none;
+    z-index: 1;
   }
-  #globe-canvas:focus-visible { outline: 2px solid var(--cyan); outline-offset: -7px; }
+  #globe-canvas:focus-visible { outline: 2px solid var(--green); outline-offset: -8px; border-radius: 26px; }
   #globe-canvas.dragging { cursor: grabbing; }
-  .chrome {
-    position: absolute;
-    z-index: 4;
-    pointer-events: none;
-  }
+  .chrome { position: absolute; z-index: 4; pointer-events: none; }
   .topline {
-    top: 22px;
-    left: clamp(19px, 3vw, 36px);
-    right: clamp(19px, 3vw, 36px);
+    top: 20px;
+    left: clamp(16px, 3vw, 34px);
+    right: clamp(16px, 3vw, 34px);
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -69,107 +75,265 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 8px;
-    color: var(--cyan);
+    margin-bottom: 7px;
+    color: var(--green);
     font: 600 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
     letter-spacing: .18em;
+    text-transform: uppercase;
   }
-  .eyebrow::before { content: ""; width: 22px; height: 1px; background: currentColor; opacity: .75; }
-  h1 { margin: 0; color: var(--cream); font-family: Georgia, "Times New Roman", serif; font-size: clamp(24px, 2.6vw, 36px); font-weight: 400; letter-spacing: -.04em; }
-  h1 em { color: #d99275; font-weight: 400; }
+  .eyebrow::before { content: ""; width: 22px; height: 1px; background: currentColor; opacity: .6; }
+  h1 { margin: 0; color: var(--ink); font-family: Georgia, "Times New Roman", serif; font-size: clamp(23px, 2.5vw, 34px); font-weight: 400; letter-spacing: -.04em; }
+  h1 em { color: var(--green); font-weight: 400; }
   .instructions {
-    max-width: 210px;
+    max-width: 216px;
     padding-top: 3px;
     color: var(--muted);
     font: 500 9px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
-    letter-spacing: .08em;
+    letter-spacing: .07em;
     text-align: right;
     text-transform: uppercase;
   }
   .reading-card {
-    top: 104px;
-    right: clamp(18px, 3vw, 34px);
-    width: min(216px, 30vw);
-    padding: 15px 16px 13px;
-    border: 1px solid rgba(244, 237, 224, .13);
-    border-radius: 18px;
-    background: linear-gradient(145deg, rgba(14, 28, 42, .83), rgba(6, 14, 24, .81));
-    box-shadow: 0 16px 40px rgba(0, 0, 0, .28), inset 0 1px rgba(255,255,255,.05);
-    backdrop-filter: blur(15px);
+    top: 100px;
+    right: clamp(16px, 3vw, 30px);
+    width: 264px;
+    max-height: calc(100% - 190px);
+    display: flex;
+    flex-direction: column;
+    padding: 14px 15px 12px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .93);
+    box-shadow: var(--shadow), inset 0 1px rgba(255, 255, 255, .9);
+    backdrop-filter: blur(16px) saturate(1.1);
     pointer-events: auto;
+    overflow: hidden;
   }
-  .reading-kicker { color: #8da1b1; font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .15em; text-transform: uppercase; }
-  .reading-city { margin-top: 8px; color: var(--cream); font-size: 14px; font-weight: 650; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .reading-card::before {
+    content: "";
+    position: absolute;
+    left: 15px; right: 15px; top: 0;
+    height: 2px;
+    border-radius: 0 0 3px 3px;
+    background: linear-gradient(90deg, transparent, var(--accent, var(--green)), transparent);
+    opacity: .7;
+  }
+  .reading-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .reading-kicker { color: var(--faint); font: 600 8px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .15em; text-transform: uppercase; }
+  .live-dot { flex: 0 0 auto; width: 7px; height: 7px; margin-top: 2px; border-radius: 50%; background: var(--green-bright); box-shadow: 0 0 0 4px rgba(44, 157, 104, .14); }
+  .live-dot.busy { animation: livePulse 1.15s ease-in-out infinite; }
+  @keyframes livePulse { 50% { transform: scale(.55); opacity: .45; } }
+  .reading-city { margin-top: 6px; color: var(--ink); font-size: 15px; font-weight: 650; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .reading-country { margin-top: 2px; color: var(--muted); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .aqi-row { display: flex; align-items: flex-end; gap: 9px; margin-top: 13px; }
-  .aqi-value { color: var(--cyan); font: 500 37px/.84 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.09em; }
-  .aqi-name { padding-bottom: 3px; color: var(--cyan); font: 600 8px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; text-transform: uppercase; }
-  .reading-meta { min-height: 18px; margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(244,237,224,.1); color: #aab9c4; font: 500 8px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
+  .aqi-row { display: flex; align-items: flex-end; gap: 10px; margin-top: 11px; }
+  .aqi-value { color: var(--green); font: 500 38px/.82 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.09em; line-height: 1; }
+  .aqi-name { padding-bottom: 3px; color: var(--green); font: 600 8px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; text-transform: uppercase; }
+  .aqi-name small { display: block; color: var(--faint); font-size: 7px; letter-spacing: .12em; margin-top: 3px; }
+  .pollutant-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 8px;
+    margin-top: 11px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .pollutant {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 1px 5px;
+    padding: 5px 6px 6px;
+    border: 1px solid var(--line-soft);
+    border-radius: 9px;
+    background: rgba(240, 249, 243, .7);
+    min-width: 0;
+  }
+  .p-label { color: var(--muted); font: 600 8px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .05em; }
+  .p-value { grid-column: 2; grid-row: 1; justify-self: end; color: var(--ink); font: 600 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.02em; white-space: nowrap; }
+  .p-value span { color: var(--faint); font-size: 7px; font-weight: 500; }
+  .p-bar { grid-column: 1 / -1; grid-row: 2; height: 3px; margin-top: 3px; border-radius: 999px; background: rgba(18, 74, 46, .08); overflow: hidden; }
+  .p-bar i { display: block; height: 100%; width: 0; border-radius: 999px; transition: width .45s ease, background .45s ease; }
+  .reading-meta { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--line-soft); color: var(--muted); font: 500 8px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .02em; }
+  .reading-meta b { color: var(--ink-soft); font-weight: 600; }
+  .sheet-grip { display: none; }
   .place-picker {
     width: 100%;
-    margin-top: 10px;
+    margin-top: 8px;
     padding: 7px 24px 7px 9px;
     appearance: none;
-    color: var(--cream);
-    border: 1px solid rgba(244,237,224,.16);
+    color: var(--ink);
+    border: 1px solid var(--line);
     border-radius: 9px;
     outline: none;
-    background: rgba(255,255,255,.055) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 12 8'%3E%3Cpath stroke='%2393A2B2' stroke-linecap='round' stroke-width='1.5' d='m1 1.5 5 5 5-5'/%3E%3C/svg%3E") no-repeat right 8px center / 10px;
+    background: rgba(255, 255, 255, .9) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 12 8'%3E%3Cpath stroke='%231F7A4F' stroke-linecap='round' stroke-width='1.5' d='m1 1.5 5 5 5-5'/%3E%3C/svg%3E") no-repeat right 8px center / 10px;
     font: 500 9px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
     cursor: pointer;
   }
-  .place-picker:focus { border-color: rgba(111,227,214,.75); box-shadow: 0 0 0 3px rgba(111,227,214,.12); }
-  .place-picker option { color: #f4ede0; background: #0b1722; }
-  .bottomline { bottom: 21px; left: clamp(19px, 3vw, 36px); right: clamp(19px, 3vw, 36px); display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
-  .legend { display: flex; align-items: center; gap: 8px; color: #b7c5ce; font: 600 8px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; text-transform: uppercase; }
-  .legend-swatch { width: 104px; height: 7px; border-radius: 999px; background: linear-gradient(90deg, #6cbda1 0%, #d6b46b 27%, #d99168 49%, #ca716a 69%, #aa85b9 84%, #875668 100%); box-shadow: 0 0 17px rgba(194,121,94,.16); }
+  .place-picker:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(31, 122, 79, .12); }
+  .place-picker option { color: var(--ink); background: #ffffff; }
+  .bottomline {
+    bottom: 18px;
+    left: clamp(16px, 3vw, 34px);
+    right: clamp(16px, 3vw, 34px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .legend { display: flex; align-items: center; gap: 8px; color: var(--muted); font: 600 8px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .09em; text-transform: uppercase; }
+  .legend-swatch { width: 132px; height: 7px; border-radius: 999px; background: linear-gradient(90deg, #3ecf8e 0%, #8bd17c 16%, #f5c451 34%, #f59e5b 52%, #ef6e6e 70%, #b98af7 86%, #c2455c 100%); box-shadow: 0 3px 12px rgba(31, 122, 79, .18); }
+  .legend-labels { display: flex; justify-content: space-between; margin-top: 3px; color: var(--faint); font: 500 7px/1 ui-monospace, monospace; letter-spacing: .08em; }
   .controls { display: flex; align-items: center; gap: 7px; pointer-events: auto; }
-  .control-button { display: inline-flex; align-items: center; justify-content: center; min-width: 31px; height: 29px; padding: 0 9px; color: #cbd6dc; border: 1px solid rgba(244,237,224,.14); border-radius: 999px; background: rgba(7, 18, 28, .64); font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .07em; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease; }
-  .control-button:hover, .control-button:focus-visible { color: var(--cyan); border-color: rgba(111,227,214,.55); background: rgba(111,227,214,.1); outline: none; transform: translateY(-1px); }
-  .tooltip { position: absolute; z-index: 5; display: none; max-width: 160px; padding: 7px 9px; color: #e8efec; border: 1px solid rgba(244,237,224,.15); border-radius: 8px; background: rgba(5, 14, 23, .88); box-shadow: 0 8px 26px rgba(0,0,0,.28); font: 500 9px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; pointer-events: none; transform: translate(10px, 10px); }
+  .control-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 31px;
+    height: 30px;
+    padding: 0 10px;
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .86);
+    font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .07em;
+    cursor: pointer;
+    transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
+  }
+  .control-button.active, .control-button:hover, .control-button:focus-visible {
+    color: #ffffff;
+    border-color: var(--green);
+    background: var(--green);
+    outline: none;
+    transform: translateY(-1px);
+  }
+  .control-button.active[id="layer-toggle"] { color: #ffffff; }
+  .tooltip {
+    position: absolute;
+    z-index: 6;
+    display: none;
+    max-width: 190px;
+    padding: 7px 9px;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .96);
+    box-shadow: 0 10px 28px rgba(22, 68, 44, .16);
+    font: 500 9px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    pointer-events: none;
+    transform: translate(12px, 12px);
+  }
+  .tooltip b { color: var(--ink); }
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+  /* ------------------------------------------------------------- tablet */
+  @media (max-width: 900px) {
+    .reading-card { width: 240px; }
+    .instructions { max-width: 170px; }
+  }
+
+  /* ------------------------------------------------------------- mobile */
   @media (max-width: 720px) {
-    #globe-shell { height: 575px; border-radius: 23px; }
-    .topline { top: 18px; }
+    #globe-shell { min-height: 0; border-radius: 22px; }
+    .topline { top: 14px; }
+    .eyebrow { font-size: 8px; letter-spacing: .14em; margin-bottom: 5px; }
+    h1 { font-size: 22px; }
     .instructions { display: none; }
-    .reading-card { top: auto; bottom: 69px; right: 16px; width: 190px; padding: 12px; border-radius: 15px; }
-    .aqi-value { font-size: 32px; }
-    .bottomline { bottom: 16px; flex-wrap: wrap; }
-    .legend { width: 100%; font-size: 7px; }
-    .legend-swatch { width: 85px; }
+    .reading-card {
+      top: auto;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      width: auto;
+      max-height: 44%;
+      padding: 8px 12px 11px;
+      border-radius: 18px;
+      box-shadow: 0 -10px 34px rgba(22, 68, 44, .14);
+    }
+    .reading-card::before { left: 12px; right: 12px; }
+    .sheet-grip {
+      display: block;
+      width: 34px;
+      height: 3px;
+      margin: 0 auto 7px;
+      border-radius: 999px;
+      background: rgba(18, 74, 46, .18);
+    }
+    .reading-head { align-items: center; }
+    .reading-city { font-size: 14px; margin-top: 4px; }
+    .reading-country { font-size: 9.5px; }
+    .aqi-row { position: absolute; top: 22px; right: 12px; margin: 0; align-items: flex-end; }
+    .aqi-value { font-size: 30px; }
+    .aqi-name { font-size: 7px; text-align: right; }
+    .reading-head { padding-right: 100px; }
+    .pollutant-grid { max-height: 88px; margin-top: 8px; padding-top: 8px; gap: 5px 6px; }
+    .pollutant { padding: 4px 5px 5px; }
+    .p-value { font-size: 9px; }
+    .reading-meta { font-size: 7.5px; margin-top: 7px; padding-top: 6px; }
+    .place-picker { margin-top: 6px; }
+    .bottomline {
+      bottom: auto;
+      top: 62px;
+      left: auto;
+      right: 12px;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .legend { display: none; }
+    .controls { gap: 5px; }
+    .control-button { height: 28px; padding: 0 9px; font-size: 7.5px; background: rgba(255, 255, 255, .94); }
   }
-  @media (max-width: 460px) {
-    #globe-shell { height: 535px; }
-    h1 { font-size: 24px; }
-    .reading-card { width: 176px; }
-    .legend { gap: 5px; font-size: 6.5px; letter-spacing: .06em; }
-    .legend-swatch { width: 72px; }
+
+  @media (max-width: 420px) {
+    h1 { font-size: 20px; }
+    .reading-card { max-height: 46%; }
+    .reading-head { padding-right: 84px; }
+    .aqi-value { font-size: 26px; }
+    .aqi-name { font-size: 6.5px; }
+    .pollutant-grid { max-height: 70px; }
   }
-  @media (prefers-reduced-motion: reduce) { .control-button { transition: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .control-button, .p-bar i { transition: none; }
+    .live-dot.busy { animation: none; }
+  }
 </style>
 </head>
 <body>
 <section id="globe-shell" aria-labelledby="globe-title">
-  <canvas id="globe-canvas" tabindex="0" aria-label="Interactive global air-quality globe. Drag to rotate, click a city hotspot for its AQI, or use arrow keys to rotate."></canvas>
+  <canvas id="globe-canvas" tabindex="0" aria-label="Interactive global air-quality globe. Drag to rotate, tap anywhere for live AQI and pollutants, or use arrow keys to rotate."></canvas>
   <div class="chrome topline">
     <div>
-      <div class="eyebrow">Satellite surface · live city heatmap</div>
+      <div class="eyebrow">Live AQI field · global surface</div>
       <h1 id="globe-title">The air, <em>everywhere.</em></h1>
     </div>
-    <div class="instructions">Drag to rotate<br>Click a heat hotspot for live AQI</div>
+    <div class="instructions">Drag to orbit · scroll to zoom<br>Tap any point for live AQI + pollutants</div>
   </div>
-  <aside class="chrome reading-card" aria-live="polite" aria-label="Selected place air-quality reading">
-    <div class="reading-kicker" id="reading-kicker">Selected location</div>
-    <div class="reading-city" id="reading-city">Loading location</div>
-    <div class="reading-country" id="reading-country">&nbsp;</div>
-    <div class="aqi-row"><div class="aqi-value" id="aqi-value">—</div><div class="aqi-name" id="aqi-name">AQI</div></div>
-    <div class="reading-meta" id="reading-meta">Reading atmospheric layer…</div>
-    <label class="sr-only" for="place-picker">Choose a city on the globe</label>
-    <select class="place-picker" id="place-picker" aria-label="Choose a city on the globe"></select>
+  <aside class="chrome reading-card" id="reading-card" aria-live="polite" aria-label="Selected place air-quality reading">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="reading-head">
+      <div style="min-width:0;flex:1;">
+        <div class="reading-kicker" id="reading-kicker">Selected location</div>
+        <div class="reading-city" id="reading-city">Loading location</div>
+        <div class="reading-country" id="reading-country">&nbsp;</div>
+      </div>
+      <span class="live-dot" id="live-dot" aria-hidden="true"></span>
+    </div>
+    <div class="aqi-row"><div class="aqi-value" id="aqi-value">—</div><div class="aqi-name" id="aqi-name">AQI<small id="aqi-sub">US EPA</small></div></div>
+    <div class="pollutant-grid" id="pollutant-grid" aria-label="Pollutants at this location"></div>
+    <div class="reading-meta" id="reading-meta">Reading atmospheric layers…</div>
+    <label class="sr-only" for="place-picker">Choose a place on the globe</label>
+    <select class="place-picker" id="place-picker" aria-label="Choose a place on the globe"></select>
   </aside>
   <div class="chrome bottomline">
-    <div class="legend"><span>NASA satellite base</span><span class="legend-swatch" aria-hidden="true"></span><span>Hazardous</span></div>
+    <div class="legend-block">
+      <div class="legend"><span>Interpolated heat field</span><span class="legend-swatch" aria-hidden="true"></span><span>Hazardous</span></div>
+      <div class="legend-labels"><span>0</span><span>50</span><span>100</span><span>200</span><span>300+</span></div>
+    </div>
     <div class="controls">
+      <button class="control-button active" id="layer-toggle" type="button" aria-pressed="true" title="Toggle AQI heat layer">Heat on</button>
       <button class="control-button" id="reset-view" type="button" title="Center the selected location">Center</button>
       <button class="control-button" id="motion-toggle" type="button" aria-pressed="false" title="Pause globe rotation">Pause</button>
     </div>
@@ -182,65 +346,146 @@
 
   const STATE = __AIRSENSE_GLOBE_STATE__;
   const API_URL = "https://air-quality-api.open-meteo.com/v1/air-quality";
-  const SATELLITE_TEXTURE_URL = "https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003615/flat_earth03.jpg";
+  const REVERSE_URL = "https://api.bigdatacloud.net/data/reverse-geocode-client";
+  const TEXTURE_URL = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+
   const canvas = document.getElementById("globe-canvas");
   const shell = document.getElementById("globe-shell");
   const ctx = canvas.getContext("2d", { alpha: true });
   const picker = document.getElementById("place-picker");
   const tooltip = document.getElementById("tooltip");
+  const card = document.getElementById("reading-card");
   const ui = {
     kicker: document.getElementById("reading-kicker"),
     city: document.getElementById("reading-city"),
     country: document.getElementById("reading-country"),
     value: document.getElementById("aqi-value"),
     name: document.getElementById("aqi-name"),
+    sub: document.getElementById("aqi-sub"),
+    grid: document.getElementById("pollutant-grid"),
     meta: document.getElementById("reading-meta"),
     motion: document.getElementById("motion-toggle"),
+    liveDot: document.getElementById("live-dot"),
   };
 
   const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const TAU = Math.PI * 2;
-  const radians = degrees => degrees * Math.PI / 180;
+  const rad = degrees => degrees * Math.PI / 180;
+  const deg = radians => radians * 180 / Math.PI;
   const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
-  const uniqueId = place => `${place.name}|${place.latitude.toFixed(3)}|${place.longitude.toFixed(3)}`;
-  const number = value => Number.isFinite(Number(value)) ? Number(value) : null;
-  const earthTexture = new Image();
-  let satelliteReady = false;
-  earthTexture.addEventListener("load", () => { satelliteReady = true; });
-  earthTexture.addEventListener("error", () => { satelliteReady = false; });
-  earthTexture.src = SATELLITE_TEXTURE_URL;
+  const mod = (value, span) => ((value % span) + span) % span;
+  const number = value => (value === null || value === undefined || value === "" || !Number.isFinite(Number(value))) ? null : Number(value);
+  const esc = value => String(value).replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+  const uid = place => `${place.name}|${place.latitude.toFixed(3)}|${place.longitude.toFixed(3)}`;
+  const isNarrow = () => shell.clientWidth <= 720;
 
+  /* ------------------------------------------------------------- palette */
+  const HEAT_STOPS = [
+    [0, [62, 207, 142]],
+    [50, [118, 214, 110]],
+    [100, [239, 203, 79]],
+    [150, [244, 155, 82]],
+    [200, [238, 106, 103]],
+    [300, [181, 131, 234]],
+    [500, [211, 77, 99]],
+  ];
+  const HEAT_LUT = (() => {
+    const table = new Array(501);
+    for (let value = 0; value <= 500; value += 1) {
+      let lower = HEAT_STOPS[0];
+      let upper = HEAT_STOPS[HEAT_STOPS.length - 1];
+      for (let index = 1; index < HEAT_STOPS.length; index += 1) {
+        if (value <= HEAT_STOPS[index][0]) { lower = HEAT_STOPS[index - 1]; upper = HEAT_STOPS[index]; break; }
+      }
+      const span = Math.max(1, upper[0] - lower[0]);
+      const t = clamp((value - lower[0]) / span, 0, 1);
+      table[value] = [
+        Math.round(lower[1][0] + (upper[1][0] - lower[1][0]) * t),
+        Math.round(lower[1][1] + (upper[1][1] - lower[1][1]) * t),
+        Math.round(lower[1][2] + (upper[1][2] - lower[1][2]) * t),
+      ];
+    }
+    return table;
+  })();
+
+  function palette(aqi) {
+    const value = number(aqi);
+    if (value === null) return { color: "#8ba295", name: "Unavailable", rgb: [139, 162, 149] };
+    if (value <= 50) return { color: "#2fae77", name: "Good", rgb: [47, 174, 119] };
+    if (value <= 100) return { color: "#b08a1f", name: "Moderate", rgb: [176, 138, 31] };
+    if (value <= 150) return { color: "#c9752c", name: "Sensitive groups", rgb: [201, 117, 44] };
+    if (value <= 200) return { color: "#cf5150", name: "Unhealthy", rgb: [207, 81, 80] };
+    if (value <= 300) return { color: "#8e5cc4", name: "Very unhealthy", rgb: [142, 92, 196] };
+    return { color: "#a33a50", name: "Hazardous", rgb: [163, 58, 80] };
+  }
+  const heatRGB = aqi => HEAT_LUT[Math.round(clamp(aqi, 0, 500))];
+
+  const POLLUTANTS = [
+    { key: "pm2_5", label: "PM₂.₅", unit: "µg/m³", guideline: 15, digits: 1 },
+    { key: "pm10", label: "PM₁₀", unit: "µg/m³", guideline: 45, digits: 1 },
+    { key: "nitrogen_dioxide", label: "NO₂", unit: "µg/m³", guideline: 25, digits: 1 },
+    { key: "ozone", label: "O₃", unit: "µg/m³", guideline: 100, digits: 1 },
+    { key: "sulphur_dioxide", label: "SO₂", unit: "µg/m³", guideline: 40, digits: 1 },
+    { key: "carbon_monoxide", label: "CO", unit: "µg/m³", guideline: 4000, digits: 0 },
+  ];
+  const ratioColor = ratio => ratio === null ? "#8ba295" : ratio <= 1 ? "#2fae77" : ratio <= 2 ? "#c39a22" : ratio <= 4 ? "#c9752c" : "#cf5150";
+
+  /* --------------------------------------------------------------- places */
   const seedCities = [
     ["Bengaluru", "India", 12.9716, 77.5946, 79],
     ["Delhi", "India", 28.6139, 77.2090, 167],
     ["Mumbai", "India", 19.0760, 72.8777, 108],
     ["Kolkata", "India", 22.5726, 88.3639, 133],
+    ["Chennai", "India", 13.0827, 80.2707, 74],
+    ["Karachi", "Pakistan", 24.8607, 67.0011, 126],
+    ["Dhaka", "Bangladesh", 23.8103, 90.4125, 158],
     ["Kathmandu", "Nepal", 27.7172, 85.3240, 121],
-    ["Dubai", "United Arab Emirates", 25.2048, 55.2708, 99],
-    ["Cairo", "Egypt", 30.0444, 31.2357, 117],
-    ["Lagos", "Nigeria", 6.5244, 3.3792, 92],
-    ["Johannesburg", "South Africa", -26.2041, 28.0473, 71],
-    ["London", "United Kingdom", 51.5072, -0.1276, 41],
-    ["Paris", "France", 48.8566, 2.3522, 47],
-    ["Istanbul", "Türkiye", 41.0082, 28.9784, 86],
-    ["Moscow", "Russia", 55.7558, 37.6176, 69],
-    ["Beijing", "China", 39.9042, 116.4074, 129],
-    ["Shanghai", "China", 31.2304, 121.4737, 105],
-    ["Tokyo", "Japan", 35.6762, 139.6503, 54],
-    ["Seoul", "South Korea", 37.5665, 126.9780, 82],
+    ["Colombo", "Sri Lanka", 6.9271, 79.8612, 68],
+    ["Bangkok", "Thailand", 13.7563, 100.5018, 96],
+    ["Hanoi", "Vietnam", 21.0278, 105.8342, 118],
     ["Jakarta", "Indonesia", -6.2088, 106.8456, 111],
     ["Singapore", "Singapore", 1.3521, 103.8198, 52],
+    ["Manila", "Philippines", 14.5995, 120.9842, 88],
+    ["Beijing", "China", 39.9042, 116.4074, 129],
+    ["Shanghai", "China", 31.2304, 121.4737, 105],
+    ["Hong Kong", "China", 22.3193, 114.1694, 71],
+    ["Seoul", "South Korea", 37.5665, 126.9780, 82],
+    ["Tokyo", "Japan", 35.6762, 139.6503, 54],
+    ["Osaka", "Japan", 34.6937, 135.5023, 49],
     ["Sydney", "Australia", -33.8688, 151.2093, 33],
-    ["São Paulo", "Brazil", -23.5558, -46.6396, 67],
-    ["Mexico City", "Mexico", 19.4326, -99.1332, 89],
+    ["Melbourne", "Australia", -37.8136, 144.9631, 29],
+    ["Auckland", "New Zealand", -36.8509, 174.7645, 21],
+    ["Dubai", "United Arab Emirates", 25.2048, 55.2708, 99],
+    ["Riyadh", "Saudi Arabia", 24.7136, 46.6753, 112],
+    ["Tehran", "Iran", 35.6892, 51.3890, 118],
+    ["Istanbul", "Türkiye", 41.0082, 28.9784, 86],
+    ["Cairo", "Egypt", 30.0444, 31.2357, 117],
+    ["Lagos", "Nigeria", 6.5244, 3.3792, 92],
+    ["Nairobi", "Kenya", -1.2921, 36.8219, 63],
+    ["Johannesburg", "South Africa", -26.2041, 28.0473, 71],
+    ["Casablanca", "Morocco", 33.5731, -7.5898, 74],
+    ["London", "United Kingdom", 51.5072, -0.1276, 41],
+    ["Paris", "France", 48.8566, 2.3522, 47],
+    ["Berlin", "Germany", 52.5200, 13.4050, 44],
+    ["Madrid", "Spain", 40.4168, -3.7038, 51],
+    ["Rome", "Italy", 41.9028, 12.4964, 58],
+    ["Moscow", "Russia", 55.7558, 37.6176, 69],
     ["New York", "United States", 40.7128, -74.0060, 44],
     ["Los Angeles", "United States", 34.0522, -118.2437, 63],
+    ["Chicago", "United States", 41.8781, -87.6298, 48],
+    ["Mexico City", "Mexico", 19.4326, -99.1332, 89],
     ["Vancouver", "Canada", 49.2827, -123.1207, 29],
+    ["Toronto", "Canada", 43.6532, -79.3832, 40],
+    ["São Paulo", "Brazil", -23.5558, -46.6396, 67],
+    ["Buenos Aires", "Argentina", -34.6037, -58.3816, 55],
+    ["Lima", "Peru", -12.0464, -77.0428, 78],
+    ["Bogotá", "Colombia", 4.7110, -74.0721, 72],
   ];
-
   const places = seedCities.map(([name, country, latitude, longitude, aqi]) => ({
-    name, country, latitude, longitude, aqi, pm25: null, source: "Global hotspot layer", updated: "Visual heatmap · tap for live AQI",
+    name, country, latitude, longitude, aqi, pm25: null, pollutants: null,
+    source: "Interpolated hotspot estimate", updated: "Tap for a live reading", estimate: true,
   }));
+
   const selectedState = STATE && STATE.selected ? STATE.selected : {};
   const injected = {
     name: String(selectedState.name || "Selected location"),
@@ -249,6 +494,7 @@
     longitude: number(selectedState.longitude) || 0,
     aqi: number(selectedState.aqi),
     pm25: number(selectedState.pm25),
+    pollutants: null,
     source: selectedState.is_demo ? "Sample atmosphere" : "Dashboard reading",
     updated: String(selectedState.updated || "Current dashboard reading"),
     dashboard: true,
@@ -257,60 +503,272 @@
   if (matchIndex >= 0) places[matchIndex] = { ...places[matchIndex], ...injected };
   else places.unshift(injected);
 
-  // Lightweight, intentionally simplified coast outlines. They make the globe
-  // legible without a mapping SDK or a remote texture dependency.
-  const coastlines = [
-    [[-168,70],[-150,70],[-136,58],[-128,50],[-125,40],[-118,33],[-108,28],[-98,20],[-86,19],[-81,26],[-80,35],[-72,44],[-67,48],[-60,52],[-57,60],[-72,72],[-104,75],[-135,73],[-168,70]],
-    [[-82,12],[-76,7],[-78,-2],[-74,-12],[-70,-18],[-67,-30],[-60,-39],[-56,-53],[-66,-55],[-73,-45],[-78,-28],[-82,-8],[-82,12]],
-    [[-11,36],[0,43],[9,45],[20,42],[29,38],[38,35],[45,30],[52,28],[59,24],[68,24],[76,20],[83,22],[88,21],[96,19],[105,14],[112,9],[120,15],[123,23],[130,30],[139,36],[143,45],[133,54],[122,57],[110,51],[103,52],[96,58],[84,62],[72,67],[57,69],[42,61],[29,60],[18,65],[5,60],[-5,54],[-11,50],[-11,36]],
-    [[-18,35],[-5,36],[9,35],[22,32],[31,30],[35,22],[43,12],[48,3],[43,-12],[36,-20],[30,-31],[19,-35],[12,-26],[4,-16],[-3,-4],[-6,9],[-15,20],[-18,35]],
-    [[112,-11],[115,-22],[126,-31],[138,-35],[151,-33],[154,-25],[145,-17],[135,-13],[124,-15],[112,-11]],
-    [[130,32],[138,35],[145,42],[142,49],[133,45],[130,32]],
-    [[-52,60],[-35,63],[-28,72],[-40,82],[-55,76],[-52,60]],
-  ];
+  let pinned = null;
+  let active = places.find(place => place.dashboard) || places[0];
 
-  const stars = Array.from({ length: 185 }, (_, index) => {
-    const v = (index * 9301 + 49297) % 233280 / 233280;
-    const w = (index * 233 + 991) % 997 / 997;
-    return { x: v, y: w, size: .25 + (index % 4) * .22, alpha: .18 + (index % 7) * .075 };
+  /* ------------------------------------------------------- field building */
+  const FIELD_STEP = 3;
+  const FIELD_ROWS = 61;
+  const FIELD_COLS = Math.round(360 / FIELD_STEP);
+  const field = new Float32Array(FIELD_ROWS * FIELD_COLS);
+
+  function baselineField(lat, lon) {
+    const latRad = rad(lat);
+    let value = 34 + 14 * Math.cos(latRad * 1.5) + 7 * Math.sin(rad(lon * 2) + latRad * 1.3) + 5 * Math.cos(rad(lon * 3.1) - latRad * 2.2);
+    value += 18 * Math.exp(-Math.pow((lat - 24) / 15, 2)) * (0.55 + 0.45 * Math.cos(rad(lon * 1.6)));
+    value += 9 * Math.exp(-Math.pow((lat + 18) / 18, 2)) * (0.4 + 0.6 * Math.sin(rad(lon * 1.1) + 1.2));
+    return clamp(value, 14, 170);
+  }
+
+  function buildField() {
+    const anchors = places.filter(place => number(place.aqi) !== null).map(place => ({
+      lat: rad(place.latitude),
+      lon: rad(place.longitude),
+      value: number(place.aqi),
+      weight: place.estimate ? 1 : 1.7,
+    }));
+    for (let row = 0; row < FIELD_ROWS; row += 1) {
+      const lat = 90 - row * FIELD_STEP;
+      const latRad = rad(lat);
+      for (let col = 0; col < FIELD_COLS; col += 1) {
+        const lon = -180 + col * FIELD_STEP;
+        let sum = baselineField(lat, lon) * 2.2;
+        let weight = 2.2;
+        for (const anchor of anchors) {
+          const dLon = Math.abs(lon * Math.PI / 180 - anchor.lon);
+          const wrapped = Math.min(dLon, TAU - dLon);
+          const dLat = latRad - anchor.lat;
+          const distance = Math.sqrt(dLat * dLat + wrapped * wrapped * Math.cos(latRad) * Math.cos(latRad));
+          const w = anchor.weight / (Math.pow(distance, 2.6) + 0.0018);
+          sum += anchor.value * w;
+          weight += w;
+        }
+        field[row * FIELD_COLS + col] = sum / weight;
+      }
+    }
+    sphereDirty = true;
+  }
+
+  function fieldAt(lat, lon) {
+    const fy = clamp((90 - lat) / FIELD_STEP, 0, FIELD_ROWS - 1.001);
+    const fxRaw = mod((lon + 180) / FIELD_STEP, FIELD_COLS);
+    const y0 = Math.floor(fy);
+    const x0 = Math.floor(fxRaw);
+    const x1 = (x0 + 1) % FIELD_COLS;
+    const ty = fy - y0;
+    const tx = fxRaw - x0;
+    const rowA = y0 * FIELD_COLS;
+    const rowB = Math.min(y0 + 1, FIELD_ROWS - 1) * FIELD_COLS;
+    const top = field[rowA + x0] * (1 - tx) + field[rowA + x1] * tx;
+    const bottom = field[rowB + x0] * (1 - tx) + field[rowB + x1] * tx;
+    return top * (1 - ty) + bottom * ty;
+  }
+
+  /* ------------------------------------------------------- texture / sphere */
+  const texture = new Image();
+  texture.crossOrigin = "anonymous";
+  let textureReady = false;
+  let textureData = null;
+  let textureWidth = 0;
+  let textureHeight = 0;
+  const texCanvas = document.createElement("canvas");
+  const texCtx = texCanvas.getContext("2d", { willReadFrequently: true });
+
+  texture.addEventListener("load", () => {
+    try {
+      const width = Math.min(2048, texture.naturalWidth || 2048);
+      const height = Math.round(width / 2);
+      texCanvas.width = width;
+      texCanvas.height = height;
+      texCtx.drawImage(texture, 0, 0, width, height);
+      const data = texCtx.getImageData(0, 0, width, height);
+      textureData = data.data;
+      textureWidth = width;
+      textureHeight = height;
+      textureReady = true;
+      sphereDirty = true;
+    } catch (_) {
+      textureReady = false;
+    }
   });
+  texture.addEventListener("error", () => { textureReady = false; });
+  texture.src = TEXTURE_URL;
 
   let width = 1, height = 1, dpr = 1;
   let centerX = 0, centerY = 0, radius = 1;
-  let rotation = -radians(injected.longitude || 78);
-  let tilt = -radians(injected.latitude || 13) * .32;
+  let rotation = -rad(injected.longitude || 78);
+  let tilt = clamp(-rad(injected.latitude || 13) * .3, -0.62, 0.62);
   let zoom = 1;
   let autoRotate = !reducedMotion;
   let pointer = null;
   let hovered = null;
-  let active = places.find(place => place.dashboard) || places[0];
   let inFlight = null;
+  let activeRequest = null;
   let frame = 0;
   let lastTime = performance.now();
-  let activeRequest = null;
+  let lastSphereRender = 0;
+  let sphereDirty = true;
+  let heatOn = true;
 
-  function palette(aqi) {
-    const value = number(aqi);
-    if (value === null) return { color: "#8da1b1", name: "Unavailable", rgb: [141,161,177] };
-    if (value <= 50) return { color: "#62d9bd", name: "Good", rgb: [98,217,189] };
-    if (value <= 100) return { color: "#e6cc6a", name: "Moderate", rgb: [230,204,106] };
-    if (value <= 150) return { color: "#ff9b61", name: "Unhealthy for sensitive groups", rgb: [255,155,97] };
-    if (value <= 200) return { color: "#f56362", name: "Unhealthy", rgb: [245,99,98] };
-    if (value <= 300) return { color: "#bd64d8", name: "Very unhealthy", rgb: [189,100,216] };
-    return { color: "#a65368", name: "Hazardous", rgb: [166,83,104] };
+  const sphereCanvas = document.createElement("canvas");
+  const sphereCtx = sphereCanvas.getContext("2d");
+  let sphereSize = 1;
+  let sphereImage = null;
+  let fieldValueMax = 0;
+
+  const LIGHT = (() => {
+    const x = -0.48, y = 0.52, z = 0.71;
+    const length = Math.hypot(x, y, z);
+    return { x: x / length, y: y / length, z: z / length };
+  })();
+  const HALF = (() => {
+    const x = LIGHT.x, y = LIGHT.y, z = LIGHT.z + 1;
+    const length = Math.hypot(x, y, z);
+    return { x: x / length, y: y / length, z: z / length };
+  })();
+
+  function sampleTexture(u, v) {
+    let x = Math.floor(u * textureWidth) % textureWidth;
+    if (x < 0) x += textureWidth;
+    let y = Math.floor(clamp(v, 0, 0.99999) * textureHeight);
+    const index = (y * textureWidth + x) * 4;
+    return [textureData[index], textureData[index + 1], textureData[index + 2]];
   }
 
+  function renderSphere() {
+    const scale = Math.min(dpr, 2);
+    const target = clamp(Math.round(radius * 2 * scale), 220, isNarrow() ? 360 : 480);
+    if (sphereSize !== target) {
+      sphereSize = target;
+      sphereCanvas.width = target;
+      sphereCanvas.height = target;
+      sphereCtx.clearRect(0, 0, target, target);
+      sphereImage = sphereCtx.createImageData(target, target);
+    }
+    if (!sphereImage) sphereImage = sphereCtx.createImageData(sphereSize, sphereSize);
+    const data = sphereImage.data;
+    const half = sphereSize / 2;
+    const cosT = Math.cos(tilt);
+    const sinT = Math.sin(tilt);
+    const pixel = 1 / half;
+    let index = 0;
+    let localMax = 0;
+
+    for (let y = 0; y < sphereSize; y += 1) {
+      const ny = -((y + 0.5) - half) * pixel;
+      for (let x = 0; x < sphereSize; x += 1) {
+        const nx = ((x + 0.5) - half) * pixel;
+        const d2 = nx * nx + ny * ny;
+        if (d2 > 1) {
+          data[index + 3] = 0;
+          index += 4;
+          continue;
+        }
+        const nz = Math.sqrt(1 - d2);
+        const latComponent = ny * cosT + nz * sinT;
+        const lonComponent = -ny * sinT + nz * cosT;
+        const b = nx;
+        const lat = Math.asin(clamp(latComponent, -1, 1));
+        const lon = Math.atan2(b, lonComponent) - rotation;
+
+        let r, g, bl;
+        if (textureReady) {
+          const u = (lon + Math.PI) / TAU;
+          const v = (Math.PI / 2 - lat) / Math.PI;
+          const texel = sampleTexture(u, v);
+          r = texel[0]; g = texel[1]; bl = texel[2];
+        } else {
+          const band = 0.55 + 0.45 * Math.cos(lat * 2.4);
+          r = 24 + band * 16;
+          g = 92 + band * 42;
+          bl = 108 + band * 46;
+          if (Math.abs(lat) < rad(24) && Math.sin(lon * 3.1 + lat * 5.2) > 0.25) { r = 96; g = 132; bl = 86; }
+        }
+
+        const oceanSurface = bl > r * 1.06 && bl > g * 1.02;
+        let heat = null;
+        let heatStrength = 0;
+        if (heatOn) {
+          const latDeg = lat * 180 / Math.PI;
+          const lonDeg = mod(lon * 180 / Math.PI + 540, 360) - 180;
+          const value = fieldAt(latDeg, lonDeg);
+          if (value > localMax) localMax = value;
+          heat = heatRGB(value);
+          heatStrength = clamp((value - 28) / 172, 0, 1);
+          const alpha = (0.04 + 0.46 * Math.pow(heatStrength, 1.45)) * (oceanSurface ? 0.66 : 1);
+          const luminance = clamp((r * 0.3 + g * 0.59 + bl * 0.11) / 255, 0, 1);
+          const tint = 1.02 + 0.3 * luminance;
+          r = r * (1 - alpha) + heat[0] * tint * alpha;
+          g = g * (1 - alpha) + heat[1] * tint * alpha;
+          bl = bl * (1 - alpha) + heat[2] * tint * alpha;
+        }
+
+        const lambert = Math.max(0, nx * LIGHT.x + ny * LIGHT.y + nz * LIGHT.z);
+        const ambient = 0.32 + 0.68 * Math.pow(lambert, 0.84);
+        const limb = 0.58 + 0.42 * Math.pow(nz, 0.6);
+        const shade = ambient * limb;
+        r *= shade; g *= shade; bl *= shade;
+
+        if (oceanSurface) {
+          const glint = Math.pow(Math.max(0, nx * HALF.x + ny * HALF.y + nz * HALF.z), 46);
+          r += glint * 72; g += glint * 86; bl += glint * 94;
+        }
+        const haze = Math.pow(1 - nz, 3.1) * 58;
+        r += haze * 0.50; g += haze * 0.76; bl += haze * 0.68;
+
+        if (heat && heatStrength > 0.2) {
+          const glow = (heatStrength - 0.2) * 0.3;
+          r += heat[0] * glow;
+          g += heat[1] * glow;
+          bl += heat[2] * glow;
+        }
+
+        data[index] = clamp(r, 0, 255);
+        data[index + 1] = clamp(g, 0, 255);
+        data[index + 2] = clamp(bl, 0, 255);
+        data[index + 3] = 255;
+        index += 4;
+      }
+    }
+    sphereCtx.putImageData(sphereImage, 0, 0);
+    fieldValueMax = localMax;
+    sphereDirty = false;
+  }
+
+  /* ------------------------------------------------------------ projection */
   function project(latitude, longitude) {
-    const lat = radians(latitude);
-    const lon = radians(longitude) + rotation;
+    const lat = rad(latitude);
+    const lon = rad(longitude) + rotation;
     const cosLat = Math.cos(lat);
     const sinLat = Math.sin(lat);
-    const x = cosLat * Math.sin(lon);
-    const y = sinLat * Math.cos(tilt) - cosLat * Math.cos(lon) * Math.sin(tilt);
-    const z = sinLat * Math.sin(tilt) + cosLat * Math.cos(lon) * Math.cos(tilt);
-    return { x: centerX + radius * x, y: centerY - radius * y, z, rawX: x, rawY: y };
+    const a = cosLat * Math.cos(lon);
+    const b = cosLat * Math.sin(lon);
+    const c = sinLat;
+    const cosT = Math.cos(tilt);
+    const sinT = Math.sin(tilt);
+    const y = c * cosT - a * sinT;
+    const z = c * sinT + a * cosT;
+    return { x: centerX + radius * b, y: centerY - radius * y, z };
   }
 
+  function unproject(px, py) {
+    const nx = (px - centerX) / radius;
+    const ny = -(py - centerY) / radius;
+    const d2 = nx * nx + ny * ny;
+    if (d2 > 0.985) return null;
+    const nz = Math.sqrt(1 - d2);
+    const cosT = Math.cos(tilt);
+    const sinT = Math.sin(tilt);
+    const c = ny * cosT + nz * sinT;
+    const a = -ny * sinT + nz * cosT;
+    const b = nx;
+    const lat = deg(Math.asin(clamp(c, -1, 1)));
+    let lon = deg(Math.atan2(b, a) - rotation);
+    lon = mod(lon + 540, 360) - 180;
+    return { latitude: lat, longitude: lon };
+  }
+
+  /* --------------------------------------------------------------- layout */
   function resize() {
     const bounds = shell.getBoundingClientRect();
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -321,365 +779,194 @@
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    centerX = width * (width < 720 ? .47 : .49);
-    centerY = height * (width < 720 ? .52 : .51);
-    radius = Math.min(height * .40, width * (width < 720 ? .42 : .31)) * zoom;
+    const narrow = width <= 720;
+    centerX = width * (narrow ? .5 : .47);
+    centerY = height * (narrow ? .32 : .49);
+    radius = Math.min(height * (narrow ? .225 : .40), width * (narrow ? .41 : .30)) * zoom;
+    sphereDirty = true;
   }
 
-  function line(points, style, lineWidth = 1) {
-    let drawing = false;
-    ctx.beginPath();
-    for (const [lat, lng] of points) {
-      const point = project(lat, lng);
-      if (point.z <= .02) { drawing = false; continue; }
-      if (!drawing) { ctx.moveTo(point.x, point.y); drawing = true; }
-      else ctx.lineTo(point.x, point.y);
+  /* -------------------------------------------------------------- drawing */
+  function drawBackdrop(time) {
+    ctx.clearRect(0, 0, width, height);
+    const wash = ctx.createRadialGradient(centerX, centerY, radius * .2, centerX, centerY, radius * 1.9);
+    wash.addColorStop(0, "rgba(255,255,255,0)");
+    wash.addColorStop(.7, "rgba(210, 238, 221, .16)");
+    wash.addColorStop(1, "rgba(190, 228, 205, 0)");
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.strokeStyle = "rgba(31, 122, 79, .09)";
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 3; i += 1) {
+      const orbit = radius * (1.22 + i * .16);
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY + radius * .04, orbit, orbit * .34, -.22 + i * .05, 0, TAU);
+      ctx.stroke();
     }
-    ctx.strokeStyle = style;
-    ctx.lineWidth = lineWidth;
+    ctx.restore();
+
+    const sheen = ctx.createRadialGradient(centerX - radius * .3, centerY - radius * .36, radius * .1, centerX, centerY, radius * 1.18);
+    sheen.addColorStop(0, "rgba(78, 168, 118, .14)");
+    sheen.addColorStop(.62, "rgba(78, 168, 118, .05)");
+    sheen.addColorStop(1, "rgba(78, 168, 118, 0)");
+    ctx.fillStyle = sheen;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * 1.2, 0, TAU);
+    ctx.fill();
+  }
+
+  function drawAtmosphere(time) {
+    const glow = ctx.createRadialGradient(centerX, centerY, radius * .94, centerX, centerY, radius * 1.14);
+    glow.addColorStop(0, "rgba(112, 190, 148, 0)");
+    glow.addColorStop(.45, "rgba(112, 190, 148, .14)");
+    glow.addColorStop(.75, "rgba(150, 214, 173, .19)");
+    glow.addColorStop(1, "rgba(180, 230, 198, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * 1.16, 0, TAU);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, .7)";
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius + .5, 0, TAU);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(31, 122, 79, .16)";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius + 1.8, 0, TAU);
     ctx.stroke();
   }
 
-  function drawStars(time) {
-    const color = "204, 234, 247";
-    for (const star of stars) {
-      const twinkle = .7 + .3 * Math.sin(time * .001 + star.x * 16);
-      ctx.fillStyle = `rgba(${color}, ${star.alpha * twinkle})`;
-      ctx.beginPath();
-      ctx.arc(star.x * width, star.y * height, star.size, 0, TAU);
-      ctx.fill();
-    }
-  }
-
-  function drawSatelliteTexture() {
-    const imageWidth = earthTexture.naturalWidth;
-    const imageHeight = earthTexture.naturalHeight;
-    const cropWidth = imageWidth / 2;
-    const destinationX = centerX - radius;
-    const destinationY = centerY - radius;
-    const destinationSize = radius * 2;
-    const centerU = (((-rotation / TAU) + .5) % 1 + 1) % 1 * imageWidth;
-    const sourceX = ((centerU - cropWidth / 2) % imageWidth + imageWidth) % imageWidth;
-    const firstWidth = Math.min(cropWidth, imageWidth - sourceX);
-    const firstDestinationWidth = destinationSize * (firstWidth / cropWidth);
-
-    ctx.drawImage(
-      earthTexture,
-      sourceX, 0, firstWidth, imageHeight,
-      destinationX, destinationY, firstDestinationWidth, destinationSize,
-    );
-    if (firstWidth < cropWidth) {
-      ctx.drawImage(
-        earthTexture,
-        0, 0, cropWidth - firstWidth, imageHeight,
-        destinationX + firstDestinationWidth, destinationY,
-        destinationSize - firstDestinationWidth, destinationSize,
-      );
-    }
-
-    const nightfall = ctx.createRadialGradient(
-      centerX - radius * .3, centerY - radius * .34, radius * .15,
-      centerX + radius * .32, centerY + radius * .28, radius * 1.12,
-    );
-    nightfall.addColorStop(0, "rgba(255, 255, 244, 0)");
-    nightfall.addColorStop(.68, "rgba(6, 19, 20, .04)");
-    nightfall.addColorStop(1, "rgba(5, 14, 15, .56)");
-    ctx.fillStyle = nightfall;
-    ctx.fillRect(destinationX, destinationY, destinationSize, destinationSize);
-  }
-
   function drawGlobe(time) {
-    const outer = ctx.createRadialGradient(centerX - radius * .28, centerY - radius * .33, radius * .08, centerX, centerY, radius * 1.25);
-    outer.addColorStop(0, "rgba(132, 185, 165, .18)");
-    outer.addColorStop(.58, "rgba(74, 126, 115, .08)");
-    outer.addColorStop(1, "rgba(15, 42, 39, 0)");
-    ctx.fillStyle = outer;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius * 1.3, 0, TAU);
-    ctx.fill();
-
+    if (sphereDirty && time - lastSphereRender > 26) {
+      renderSphere();
+      lastSphereRender = time;
+    }
     ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, TAU);
     ctx.clip();
-    const usingSatellite = satelliteReady && earthTexture.naturalWidth > 0;
-    if (usingSatellite) {
-      drawSatelliteTexture();
-    } else {
-      const water = ctx.createRadialGradient(centerX - radius * .32, centerY - radius * .4, radius * .08, centerX + radius * .22, centerY + radius * .25, radius * 1.24);
-      water.addColorStop(0, "#29667e");
-      water.addColorStop(.42, "#1a4a61");
-      water.addColorStop(.79, "#102f42");
-      water.addColorStop(1, "#07191f");
-      ctx.fillStyle = water;
-      ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2);
-
-      ctx.globalCompositeOperation = "screen";
-      for (let i = 0; i < 10; i += 1) {
-        const y = centerY - radius + (i + .5) * (radius * 2 / 10);
-        ctx.strokeStyle = `rgba(184, 216, 204, ${.015 + (i % 3) * .008})`;
-        ctx.lineWidth = radius * (.025 + (i % 2) * .006);
-        ctx.beginPath();
-        ctx.ellipse(centerX + Math.sin(time * .0001 + i) * radius * .08, y, radius * .9, radius * .08, -.15, 0, TAU);
-        ctx.stroke();
-      }
-      ctx.globalCompositeOperation = "source-over";
-    }
-
-    // Latitude / longitude grid gives the sphere its readable, navigable form.
-    for (let latitude = -60; latitude <= 60; latitude += 20) {
-      const points = [];
-      for (let longitude = -180; longitude <= 180; longitude += 4) points.push([latitude, longitude]);
-      line(points, usingSatellite ? "rgba(238, 240, 222, .14)" : "rgba(155, 208, 192, .16)", .7);
-    }
-    for (let longitude = -160; longitude <= 180; longitude += 20) {
-      const points = [];
-      for (let latitude = -88; latitude <= 88; latitude += 3) points.push([latitude, longitude]);
-      line(points, usingSatellite ? "rgba(238, 240, 222, .13)" : "rgba(155, 208, 192, .15)", .7);
-    }
-
-    if (!usingSatellite) {
-      // Fallback coastline layer when the satellite texture is unavailable.
-      ctx.fillStyle = "rgba(87, 164, 132, .11)";
-      for (const shape of coastlines) {
-        const visible = shape.map(([lng, lat]) => project(lat, lng));
-        if (visible.filter(point => point.z > .02).length < 3) continue;
-        ctx.beginPath();
-        let started = false;
-        for (const point of visible) {
-          if (point.z <= .02) continue;
-          if (!started) { ctx.moveTo(point.x, point.y); started = true; }
-          else ctx.lineTo(point.x, point.y);
-        }
-        if (started) { ctx.closePath(); ctx.fill(); }
-        const coastPoints = shape.map(([lng, lat]) => [lat, lng]);
-        line(coastPoints, "rgba(133, 208, 174, .48)", .8);
-      }
-    }
-
-    drawHeatmap(time);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(sphereCanvas, centerX - radius, centerY - radius, radius * 2, radius * 2);
+    drawMarkers(time);
     ctx.restore();
-
-    const rim = ctx.createRadialGradient(centerX - radius * .24, centerY - radius * .26, radius * .78, centerX, centerY, radius * 1.04);
-    rim.addColorStop(0, "rgba(134, 185, 165, 0)");
-    rim.addColorStop(.8, "rgba(104, 164, 142, .08)");
-    rim.addColorStop(1, "rgba(185, 221, 194, .48)");
-    ctx.strokeStyle = rim;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, TAU);
-    ctx.stroke();
+    drawAtmosphere(time);
   }
 
-  function drawHeatmap(time) {
-    const visible = places.map(place => ({ place, point: project(place.latitude, place.longitude) })).filter(item => item.point.z > .035);
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    for (const { place, point } of visible) {
-      const style = palette(place.aqi);
-      const severity = clamp((number(place.aqi) || 55) / 220, .15, 1.45);
-      const pulse = 1 + Math.sin(time * .0024 + place.latitude) * .06;
-      const haloSize = radius * (.075 + severity * .072) * pulse;
-      const gradient = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, haloSize);
-      gradient.addColorStop(0, `rgba(${style.rgb.join(",")}, .36)`);
-      gradient.addColorStop(.32, `rgba(${style.rgb.join(",")}, .17)`);
-      gradient.addColorStop(1, `rgba(${style.rgb.join(",")}, 0)`);
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, haloSize, 0, TAU);
-      ctx.fill();
+  function drawMarkers(time) {
+    const visible = [];
+    for (const place of places) {
+      const point = project(place.latitude, place.longitude);
+      if (point.z > .04) visible.push({ place, point });
     }
-    ctx.restore();
-
-    // Markers appear after heat haze so every place remains clickable and legible.
     for (const { place, point } of visible) {
       const style = palette(place.aqi);
       const isActive = place === active;
       const isHovered = place === hovered;
-      const pointRadius = isActive ? 5.2 : isHovered ? 4.5 : 3.25;
-      if (isActive) {
-        ctx.strokeStyle = `${style.color}aa`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 10 + Math.sin(time * .004) * 1.5, 0, TAU);
-        ctx.stroke();
-      }
-      ctx.fillStyle = "rgba(4, 14, 22, .92)";
+      const size = isActive ? 4.6 : isHovered ? 4.1 : 2.8;
       ctx.beginPath();
-      ctx.arc(point.x, point.y, pointRadius + 1.4, 0, TAU);
+      ctx.arc(point.x, point.y, size + 2.2, 0, TAU);
+      ctx.fillStyle = "rgba(255, 255, 255, .88)";
       ctx.fill();
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, size, 0, TAU);
       ctx.fillStyle = style.color;
-      ctx.shadowBlur = isActive ? 15 : 8;
-      ctx.shadowColor = style.color;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, pointRadius, 0, TAU);
       ctx.fill();
-      ctx.shadowBlur = 0;
       if (isActive || isHovered) {
-        const labelY = point.y - 14;
+        ctx.strokeStyle = style.color;
+        ctx.globalAlpha = .55;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, size + 6 + (isActive ? Math.sin(time * .004) * 1.6 : 0), 0, TAU);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
         ctx.font = "600 9px ui-monospace, SFMono-Regular, Menlo, monospace";
-        ctx.textAlign = point.x > centerX + radius * .55 ? "right" : "left";
-        ctx.fillStyle = "rgba(244, 237, 224, .92)";
-        ctx.fillText(place.name, point.x + (ctx.textAlign === "left" ? 9 : -9), labelY);
+        ctx.textAlign = point.x > centerX + radius * .5 ? "right" : "left";
+        ctx.fillStyle = "rgba(16, 36, 26, .94)";
+        ctx.fillText(place.name, point.x + (ctx.textAlign === "left" ? 10 : -10), point.y - 10);
+      }
+    }
+    if (pinned && pinned !== active) {
+      const point = project(pinned.latitude, pinned.longitude);
+      if (point.z > .04) {
+        const style = palette(pinned.aqi);
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 4.4, 0, TAU);
+        ctx.fillStyle = style.color;
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 7.6, 0, TAU);
+        ctx.stroke();
       }
     }
   }
 
   function draw(time) {
-    ctx.clearRect(0, 0, width, height);
-    const background = ctx.createLinearGradient(0, 0, width, height);
-    background.addColorStop(0, "rgba(10, 28, 42, .36)");
-    background.addColorStop(1, "rgba(4, 10, 18, .1)");
-    ctx.fillStyle = background;
-    ctx.fillRect(0, 0, width, height);
-    drawStars(time);
+    drawBackdrop(time);
     drawGlobe(time);
   }
 
   function loop(time) {
     const elapsed = Math.min(50, time - lastTime);
     lastTime = time;
-    if (autoRotate && !pointer) rotation += elapsed * .000055;
+    if (autoRotate && !pointer) { rotation += elapsed * .000055; sphereDirty = true; }
     draw(time);
     frame = requestAnimationFrame(loop);
   }
 
-  function currentProjection(place) {
-    return project(place.latitude, place.longitude);
-  }
-
-  function placeAt(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
+  /* ------------------------------------------------------------ interaction */
+  function nearestPlace(clientX, clientY) {
+    const bounds = canvas.getBoundingClientRect();
+    const x = clientX - bounds.left;
+    const y = clientY - bounds.top;
     let candidate = null;
-    let closest = 22;
+    let closest = 20;
     for (const place of places) {
-      const point = currentProjection(place);
-      if (point.z <= .035) continue;
+      const point = project(place.latitude, place.longitude);
+      if (point.z <= .04) continue;
       const distance = Math.hypot(point.x - x, point.y - y);
       if (distance < closest) { closest = distance; candidate = place; }
     }
     return candidate;
   }
 
+  function pointFromEvent(clientX, clientY) {
+    const bounds = canvas.getBoundingClientRect();
+    return unproject(clientX - bounds.left, clientY - bounds.top);
+  }
+
   function updateTooltip(event) {
-    const place = placeAt(event.clientX, event.clientY);
-    if (place !== hovered) { hovered = place; canvas.style.cursor = place ? "pointer" : (pointer ? "grabbing" : "grab"); }
-    if (!place) { tooltip.style.display = "none"; return; }
-    const color = palette(place.aqi);
-    tooltip.innerHTML = `<b>${escapeHtml(place.name)}</b><br><span style="color:${color.color}">${place.aqi == null ? "Tap for AQI" : `AQI ${Math.round(place.aqi)}`}</span>`;
-    const shellRect = shell.getBoundingClientRect();
-    tooltip.style.left = `${event.clientX - shellRect.left}px`;
-    tooltip.style.top = `${event.clientY - shellRect.top}px`;
+    if (event.pointerType === "touch") return;
+    const place = nearestPlace(event.clientX, event.clientY);
+    hovered = place;
+    const point = pointFromEvent(event.clientX, event.clientY);
+    if (!place && !point) {
+      tooltip.style.display = "none";
+      canvas.style.cursor = pointer ? "grabbing" : "grab";
+      return;
+    }
+    canvas.style.cursor = "pointer";
+    let label;
+    if (place) {
+      const style = palette(place.aqi);
+      label = `<b>${esc(place.name)}</b><br><span style="color:${style.color}">${place.aqi == null ? "Tap for live AQI" : `AQI ${Math.round(place.aqi)}`}</span>`;
+    } else {
+      const value = fieldAt(point.latitude, point.longitude);
+      const style = palette(value);
+      label = `<b>${point.latitude.toFixed(1)}°, ${point.longitude.toFixed(1)}°</b><br><span style="color:${style.color}">Tap for live AQI · field ≈ ${Math.round(value)}</span>`;
+    }
+    tooltip.innerHTML = label;
+    const bounds = shell.getBoundingClientRect();
+    tooltip.style.left = `${clamp(event.clientX - bounds.left, 4, bounds.width - 150)}px`;
+    tooltip.style.top = `${clamp(event.clientY - bounds.top, 4, bounds.height - 44)}px`;
     tooltip.style.display = "block";
-  }
-
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
-  }
-
-  function describe(place, loading = false) {
-    const style = palette(place.aqi);
-    ui.city.textContent = place.name;
-    ui.country.textContent = place.country || "Global atmospheric layer";
-    ui.kicker.textContent = loading ? "Loading live reading" : (place.dashboard ? "Your observation point" : "Selected hotspot");
-    ui.value.textContent = loading ? "…" : (place.aqi === null ? "—" : Math.round(place.aqi));
-    ui.value.style.color = style.color;
-    ui.name.textContent = loading ? "LIVE" : style.name;
-    ui.name.style.color = style.color;
-    if (loading) ui.meta.textContent = "Querying Open-Meteo for current US AQI…";
-    else {
-      const pm = place.pm25 === null || place.pm25 === undefined ? "" : ` · PM₂.₅ ${Number(place.pm25).toFixed(1)} µg/m³`;
-      ui.meta.textContent = `${place.source || "AQI layer"}${pm} · ${place.updated || "Current"}`;
-    }
-  }
-
-  function buildPicker() {
-    picker.innerHTML = "";
-    const ordered = [...places].sort((a, b) => a.name.localeCompare(b.name));
-    for (const place of ordered) {
-      const option = document.createElement("option");
-      option.value = uniqueId(place);
-      option.textContent = `${place.name}${place.country ? ` · ${place.country}` : ""}`;
-      picker.append(option);
-    }
-  }
-
-  function selectPicker(place) {
-    picker.value = uniqueId(place);
-  }
-
-  function centerOn(place) {
-    rotation = -radians(place.longitude);
-    tilt = clamp(-radians(place.latitude) * .45, -0.72, .72);
-  }
-
-  async function fetchReading(place) {
-    if (activeRequest) activeRequest.abort();
-    activeRequest = new AbortController();
-    const timeout = window.setTimeout(() => activeRequest && activeRequest.abort(), 11000);
-    try {
-      const query = new URLSearchParams({
-        latitude: String(place.latitude), longitude: String(place.longitude), current: "us_aqi,pm2_5", timezone: "auto",
-      });
-      const response = await fetch(`${API_URL}?${query.toString()}`, { signal: activeRequest.signal, cache: "no-store" });
-      if (!response.ok) throw new Error(`Provider returned ${response.status}`);
-      const payload = await response.json();
-      const reading = payload && payload.current ? payload.current : null;
-      if (!reading || !Number.isFinite(Number(reading.us_aqi))) throw new Error("No AQI returned");
-      if (place !== active) return;
-      place.aqi = Number(reading.us_aqi);
-      place.pm25 = number(reading.pm2_5);
-      place.source = "Live Open-Meteo AQI";
-      place.updated = reading.time ? `Updated ${String(reading.time).replace("T", " · ")}` : "Current provider reading";
-      place.live = true;
-      describe(place);
-    } catch (error) {
-      if (place !== active || error.name === "AbortError") return;
-      place.source = place.dashboard ? (place.source || "Dashboard reading") : "Cached hotspot estimate · live lookup unavailable";
-      place.updated = place.dashboard ? (place.updated || "Current dashboard reading") : "Tap another marker to retry";
-      describe(place);
-    } finally {
-      window.clearTimeout(timeout);
-      if (activeRequest && !activeRequest.signal.aborted) activeRequest = null;
-    }
-  }
-
-  async function loadHeatmap() {
-    try {
-      const query = new URLSearchParams({
-        latitude: places.map(place => place.latitude).join(","),
-        longitude: places.map(place => place.longitude).join(","),
-        current: "us_aqi,pm2_5",
-        timezone: "auto",
-      });
-      const response = await fetch(`${API_URL}?${query.toString()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error(`Provider returned ${response.status}`);
-      const payload = await response.json();
-      const samples = Array.isArray(payload) ? payload : [payload];
-      samples.forEach((sample, index) => {
-        const reading = sample && sample.current;
-        const place = places[index];
-        if (!place || !reading || !Number.isFinite(Number(reading.us_aqi))) return;
-        place.aqi = Number(reading.us_aqi);
-        place.pm25 = number(reading.pm2_5);
-        place.source = "Live city heatmap · Open-Meteo";
-        place.updated = reading.time ? `Updated ${String(reading.time).replace("T", " · ")}` : "Current provider reading";
-      });
-      if (active) describe(active);
-    } catch (_) {
-      // Retain the labelled visual hotspots until a city is selected for a
-      // direct live lookup. The globe remains fully useful offline.
-    }
-  }
-
-  function selectPlace(place, requestLive = true) {
-    active = place;
-    selectPicker(place);
-    describe(place, requestLive);
-    if (requestLive) fetchReading(place);
-    else describe(place);
   }
 
   function pointerDown(event) {
@@ -693,9 +980,10 @@
     if (pointer && event.pointerId === pointer.id) {
       const dx = event.clientX - pointer.x;
       const dy = event.clientY - pointer.y;
-      if (Math.abs(dx) + Math.abs(dy) > 4) pointer.moved = true;
-      rotation = pointer.rotation + dx / Math.max(180, radius) * 1.22;
-      tilt = clamp(pointer.tilt + dy / Math.max(180, radius) * .72, -1.08, 1.08);
+      if (Math.abs(dx) + Math.abs(dy) > 5) pointer.moved = true;
+      rotation = pointer.rotation + dx / Math.max(170, radius) * 1.2;
+      tilt = clamp(pointer.tilt + dy / Math.max(170, radius) * .66, -1.05, 1.05);
+      sphereDirty = true;
       return;
     }
     updateTooltip(event);
@@ -706,10 +994,14 @@
     const wasDrag = pointer.moved;
     pointer = null;
     canvas.classList.remove("dragging");
-    try { canvas.releasePointerCapture(event.pointerId); } catch (_) { /* pointer was already released */ }
+    try { canvas.releasePointerCapture(event.pointerId); } catch (_) { /* already released */ }
     if (!wasDrag) {
-      const place = placeAt(event.clientX, event.clientY);
+      const place = nearestPlace(event.clientX, event.clientY);
       if (place) selectPlace(place, true);
+      else {
+        const point = pointFromEvent(event.clientX, event.clientY);
+        if (point) pinLocation(point.latitude, point.longitude);
+      }
     }
     updateTooltip(event);
   }
@@ -721,18 +1013,219 @@
   canvas.addEventListener("pointerleave", () => { if (!pointer) { hovered = null; tooltip.style.display = "none"; } });
   canvas.addEventListener("wheel", event => {
     event.preventDefault();
-    zoom = clamp(zoom + (event.deltaY < 0 ? .06 : -.06), .78, 1.23);
-    radius = Math.min(height * .40, width * (width < 720 ? .42 : .31)) * zoom;
+    zoom = clamp(zoom + (event.deltaY < 0 ? .06 : -.06), .8, 1.25);
+    resize();
   }, { passive: false });
   canvas.addEventListener("keydown", event => {
     const step = .13;
-    if (event.key === "ArrowLeft") { rotation -= step; event.preventDefault(); }
-    else if (event.key === "ArrowRight") { rotation += step; event.preventDefault(); }
-    else if (event.key === "ArrowUp") { tilt = clamp(tilt - step, -1.08, 1.08); event.preventDefault(); }
-    else if (event.key === "ArrowDown") { tilt = clamp(tilt + step, -1.08, 1.08); event.preventDefault(); }
+    if (event.key === "ArrowLeft") { rotation -= step; sphereDirty = true; event.preventDefault(); }
+    else if (event.key === "ArrowRight") { rotation += step; sphereDirty = true; event.preventDefault(); }
+    else if (event.key === "ArrowUp") { tilt = clamp(tilt - step, -1.05, 1.05); sphereDirty = true; event.preventDefault(); }
+    else if (event.key === "ArrowDown") { tilt = clamp(tilt + step, -1.05, 1.05); sphereDirty = true; event.preventDefault(); }
     else if (event.key === " " || event.key === "p" || event.key === "P") { toggleMotion(); event.preventDefault(); }
     else if (event.key === "Enter" && active) { selectPlace(active, true); event.preventDefault(); }
   });
+
+  /* ------------------------------------------------------------- readings */
+  function pollutantRows(place) {
+    const readings = place.pollutants || {};
+    return POLLUTANTS.map(spec => {
+      const raw = readings[spec.key] != null ? readings[spec.key] : (spec.key === "pm2_5" ? place.pm25 : null);
+      const value = number(raw);
+      const ratio = value === null ? null : value / spec.guideline;
+      return { ...spec, value, ratio };
+    });
+  }
+
+  function renderPollutants(place) {
+    const rows = pollutantRows(place);
+    const any = rows.some(row => row.value !== null);
+    if (!any) {
+      ui.grid.innerHTML = `<p class="empty-copy" style="grid-column:1/-1;margin:2px;color:var(--muted);font-size:9px;line-height:1.5;">Tap a point on the globe to load its pollutant mix.</p>`;
+      return;
+    }
+    ui.grid.innerHTML = rows.map(row => {
+      if (row.value === null) {
+        return `<div class="pollutant"><span class="p-label">${row.label}</span><span class="p-value">—</span><span class="p-bar"><i></i></span></div>`;
+      }
+      const color = ratioColor(row.ratio);
+      const width = clamp((row.ratio || 0) / 4 * 100, 3, 100);
+      const shown = row.value >= 100 ? row.value.toFixed(0) : row.value.toFixed(row.digits);
+      return `<div class="pollutant" title="${row.label}: ${shown} ${row.unit} · ${row.ratio != null ? row.ratio.toFixed(1) + "× WHO guideline" : "no guideline"}">
+        <span class="p-label">${row.label}</span>
+        <span class="p-value">${shown}<span> ${row.unit === "µg/m³" ? "µg" : row.unit}</span></span>
+        <span class="p-bar"><i style="width:${width.toFixed(0)}%;background:${color}"></i></span>
+      </div>`;
+    }).join("");
+  }
+
+  function describe(place, loading = false) {
+    const style = palette(place.aqi);
+    card.style.setProperty("--accent", style.color);
+    ui.city.textContent = place.name;
+    ui.country.textContent = place.country || "Open coordinates";
+    ui.kicker.textContent = loading ? "Loading live reading" : (place.dashboard ? "Your observation point" : place.estimate ? "Interpolated hotspot" : "Live location reading");
+    ui.value.textContent = loading ? "…" : (place.aqi === null ? "—" : Math.round(place.aqi));
+    ui.value.style.color = style.color;
+    ui.name.firstChild.textContent = loading ? "LIVE" : style.name;
+    ui.name.style.color = style.color;
+    ui.liveDot.classList.toggle("busy", loading);
+    if (loading) {
+      ui.meta.innerHTML = "Querying Open-Meteo for US AQI and pollutants…";
+    } else {
+      const time = place.updated || "Current";
+      ui.meta.innerHTML = `${esc(place.source || "AQI layer")} · <b>${esc(time)}</b>`;
+    }
+    renderPollutants(place);
+  }
+
+  function buildPicker() {
+    const ordered = [...places].sort((a, b) => a.name.localeCompare(b.name));
+    const current = active ? uid(active) : "";
+    picker.innerHTML = "";
+    if (pinned) {
+      const option = document.createElement("option");
+      option.value = uid(pinned);
+      option.textContent = `📍 ${pinned.name}`;
+      picker.append(option);
+    }
+    for (const place of ordered) {
+      const option = document.createElement("option");
+      option.value = uid(place);
+      option.textContent = `${place.name}${place.country ? ` · ${place.country}` : ""}`;
+      picker.append(option);
+    }
+    picker.value = current;
+  }
+
+  function centerOn(place) {
+    rotation = -rad(place.longitude);
+    tilt = clamp(-rad(place.latitude) * .42, -0.72, .72);
+    sphereDirty = true;
+  }
+
+  async function reverseGeocode(place) {
+    try {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 6500);
+      const query = new URLSearchParams({
+        latitude: String(place.latitude), longitude: String(place.longitude), localityLanguage: "en",
+      });
+      const response = await fetch(`${REVERSE_URL}?${query.toString()}`, { signal: controller.signal });
+      window.clearTimeout(timeout);
+      if (!response.ok) return;
+      const data = await response.json();
+      const locality = data.city || data.locality || data.principalSubdivision;
+      if (!locality || place !== active) return;
+      place.name = locality;
+      place.country = [data.principalSubdivision, data.countryName].filter(Boolean).filter(item => item !== locality).join(", ") || place.country || "Open coordinates";
+      ui.city.textContent = place.name;
+      ui.country.textContent = place.country;
+      buildPicker();
+    } catch (_) {
+      // Coordinates remain the honest label when reverse geocoding is unavailable.
+    }
+  }
+
+  async function fetchReading(place) {
+    if (activeRequest) activeRequest.abort();
+    activeRequest = new AbortController();
+    const timeout = window.setTimeout(() => activeRequest && activeRequest.abort(), 12000);
+    try {
+      const query = new URLSearchParams({
+        latitude: String(place.latitude),
+        longitude: String(place.longitude),
+        current: "us_aqi,european_aqi,pm2_5,pm10,nitrogen_dioxide,sulphur_dioxide,ozone,carbon_monoxide",
+        timezone: "auto",
+      });
+      const response = await fetch(`${API_URL}?${query.toString()}`, { signal: activeRequest.signal, cache: "no-store" });
+      if (!response.ok) throw new Error(`Provider returned ${response.status}`);
+      const payload = await response.json();
+      const reading = payload && payload.current ? payload.current : null;
+      if (!reading || !Number.isFinite(Number(reading.us_aqi))) throw new Error("No AQI returned");
+      if (place !== active) return;
+      place.aqi = Number(reading.us_aqi);
+      place.pm25 = number(reading.pm2_5);
+      place.pollutants = {};
+      for (const spec of POLLUTANTS) place.pollutants[spec.key] = number(reading[spec.key]);
+      place.source = "Live Open-Meteo · CAMS estimate";
+      place.updated = reading.time ? `Updated ${String(reading.time).replace("T", " · ")}` : "Current provider reading";
+      place.estimate = false;
+      place.live = true;
+      describe(place);
+      buildField();
+    } catch (error) {
+      if (place !== active || error.name === "AbortError") return;
+      place.source = place.dashboard ? (place.source || "Dashboard reading") : place.estimate ? "Interpolated field · live lookup unavailable" : (place.source || "Cached reading");
+      place.updated = "Tap another point to retry";
+      describe(place);
+    } finally {
+      window.clearTimeout(timeout);
+      if (activeRequest && !activeRequest.signal.aborted) activeRequest = null;
+    }
+  }
+
+  async function loadHeatmap() {
+    try {
+      const query = new URLSearchParams({
+        latitude: places.map(place => place.latitude).join(","),
+        longitude: places.map(place => place.longitude).join(","),
+        current: "us_aqi,pm2_5,pm10,nitrogen_dioxide,sulphur_dioxide,ozone,carbon_monoxide",
+        timezone: "auto",
+      });
+      const response = await fetch(`${API_URL}?${query.toString()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Provider returned ${response.status}`);
+      const payload = await response.json();
+      const samples = Array.isArray(payload) ? payload : [payload];
+      samples.forEach((sample, index) => {
+        const reading = sample && sample.current;
+        const place = places[index];
+        if (!place || !reading || !Number.isFinite(Number(reading.us_aqi))) return;
+        place.aqi = Number(reading.us_aqi);
+        place.pm25 = number(reading.pm2_5);
+        place.pollutants = {};
+        for (const spec of POLLUTANTS) place.pollutants[spec.key] = number(reading[spec.key]);
+        place.source = "Live Open-Meteo city sample";
+        place.updated = reading.time ? `Updated ${String(reading.time).replace("T", " · ")}` : "Current provider reading";
+        place.estimate = false;
+      });
+      buildField();
+      if (active) describe(active);
+    } catch (_) {
+      // Keep the labelled interpolated field when the provider is unreachable.
+    }
+  }
+
+  function selectPlace(place, requestLive = true) {
+    active = place;
+    if (place !== pinned) pinned = place;
+    buildPicker();
+    describe(place, requestLive && place.aqi === null);
+    if (requestLive) fetchReading(place);
+    else describe(place);
+  }
+
+  function pinLocation(latitude, longitude) {
+    const label = `${Math.abs(latitude).toFixed(2)}°${latitude >= 0 ? "N" : "S"}, ${Math.abs(longitude).toFixed(2)}°${longitude >= 0 ? "E" : "W"}`;
+    const place = {
+      name: label,
+      country: "Open coordinates",
+      latitude, longitude,
+      aqi: fieldAt(latitude, longitude),
+      pm25: null,
+      pollutants: null,
+      source: "Interpolated field estimate",
+      updated: "Fetching live reading…",
+      estimate: true,
+      pinned: true,
+    };
+    pinned = place;
+    active = place;
+    describe(place, true);
+    buildPicker();
+    fetchReading(place);
+    reverseGeocode(place);
+  }
 
   function toggleMotion() {
     autoRotate = !autoRotate;
@@ -741,20 +1234,30 @@
     ui.motion.title = autoRotate ? "Pause globe rotation" : "Resume globe rotation";
   }
 
+  function toggleHeat() {
+    heatOn = !heatOn;
+    const button = document.getElementById("layer-toggle");
+    button.textContent = heatOn ? "Heat on" : "Heat off";
+    button.classList.toggle("active", heatOn);
+    button.setAttribute("aria-pressed", String(heatOn));
+    sphereDirty = true;
+  }
+
   document.getElementById("motion-toggle").addEventListener("click", toggleMotion);
-  document.getElementById("reset-view").addEventListener("click", () => { centerOn(active || injected); zoom = 1; resize(); });
+  document.getElementById("layer-toggle").addEventListener("click", toggleHeat);
+  document.getElementById("reset-view").addEventListener("click", () => { if (active) centerOn(active); zoom = 1; resize(); });
   picker.addEventListener("change", () => {
-    const place = places.find(item => uniqueId(item) === picker.value);
+    const place = (pinned && uid(pinned) === picker.value) ? pinned : places.find(item => uid(item) === picker.value);
     if (place) { centerOn(place); selectPlace(place, true); }
   });
 
   const observer = new ResizeObserver(resize);
   observer.observe(shell);
+  buildField();
   buildPicker();
-  selectPicker(active);
+  describe(active);
   centerOn(active);
   resize();
-  describe(active);
   loadHeatmap();
   frame = requestAnimationFrame(loop);
   window.addEventListener("beforeunload", () => { cancelAnimationFrame(frame); observer.disconnect(); if (activeRequest) activeRequest.abort(); });
