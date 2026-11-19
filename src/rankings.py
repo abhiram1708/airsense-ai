@@ -100,7 +100,8 @@ def fetch_ranked_cities() -> list[dict]:
         "current": CURRENT_FIELDS,
         "timezone": "auto",
     }
-    response = requests.get(AIR_QUALITY_URL, params=params, timeout=30)
+    # Fail fast: rankings are a nice-to-have, not a reason to hold the page.
+    response = requests.get(AIR_QUALITY_URL, params=params, timeout=(4, 8))
     response.raise_for_status()
     payload = response.json()
     if isinstance(payload, dict):

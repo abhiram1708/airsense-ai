@@ -55,7 +55,9 @@ def fetch_air_quality(latitude: float, longitude: float) -> dict:
         "forecast_days": 5,
         "timezone": "auto",
     }
-    response = requests.get(AIR_QUALITY_URL, params=params, timeout=12)
+    # Short connect/read budget: the page falls back to labelled sample data
+    # rather than leaving someone staring at a blank screen.
+    response = requests.get(AIR_QUALITY_URL, params=params, timeout=(4, 8))
     response.raise_for_status()
     data = response.json()
 

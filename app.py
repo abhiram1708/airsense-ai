@@ -99,7 +99,7 @@ if "chat_pending" not in st.session_state:
 # ---------------------------------------------------------------------------
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner="Loading live air…")
 def load_air(latitude: float, longitude: float):
     return fetch_air_quality(latitude, longitude)
 
@@ -109,9 +109,13 @@ def find_places(query: str):
     return search_locations(query)
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner="Loading comparison boards…")
 def load_rankings():
-    return fetch_ranked_cities()
+    """Return (rows, is_sample). Never raise, and cache the fallback briefly."""
+    try:
+        return fetch_ranked_cities(), False
+    except Exception:
+        return sample_rankings(), True
 
 
 def run_search(term: str) -> None:
@@ -269,21 +273,6 @@ def time_label(value) -> str:
         return "—"
 
 
-# Comparison boards. A provider hiccup leaves the rest of the page intact.
-ranking_rows: list[dict] = []
-rank_sample = False
-try:
-    ranking_rows = load_rankings()
-except Exception:
-    ranking_rows = sample_rankings()
-    rank_sample = True
-
-selected_for_rank = {"name": city, "country": country, "aqi": aqi}
-local_rank = city_ranking(selected_for_rank, "India", ranking_rows) if ranking_rows else {"available": False}
-world_rank = city_ranking(selected_for_rank, "World", ranking_rows) if ranking_rows else {"available": False}
-country_rank = country_ranking(selected_for_rank, ranking_rows) if ranking_rows else {"available": False}
-
-
 # ---------------------------------------------------------------------------
 # Context handed to the assistant
 # ---------------------------------------------------------------------------
@@ -325,18 +314,7 @@ chat_context.update(
             "change_7d_percent": period_change(7),
             "change_30d_percent": period_change(30),
         },
-        "rankings": {
-            "india_position": local_rank.get("position"),            "india_total": local_rank.get("total"),
-            "india_cleanest": (local_rank.get("cleanest") or {}).get("name"),
-            "india_dirtiest": (local_rank.get("dirtiest") or {}).get("name"),
-            "world_position": world_rank.get("position"),
-            "world_total": world_rank.get("total"),
-            "world_cleanest": (world_rank.get("cleanest") or {}).get("name"),
-            "world_dirtiest": (world_rank.get("dirtiest") or {}).get("name"),
-            "country_position": country_rank.get("position"),
-            "country_total": country_rank.get("total"),
-            "is_sample": rank_sample,
-        },
+        "rankings": {},
     }
 )
 
@@ -838,6 +816,33 @@ chat_context["health_advisory"] = {
 # ---------------------------------------------------------------------------
 # Rankings
 # ---------------------------------------------------------------------------
+
+# Loaded this late on purpose: the hero, now strip, globe, forecast, history and
+# advisory have already been sent to the browser, so a slow ranking provider
+# cannot leave the page blank.
+try:
+    ranking_rows, rank_sample = load_rankings()
+except Exception:
+    ranking_rows, rank_sample = sample_rankings(), True
+
+selected_for_rank = {"name": city, "country": country, "aqi": aqi}
+local_rank = city_ranking(selected_for_rank, "India", ranking_rows) if ranking_rows else {"available": False}
+world_rank = city_ranking(selected_for_rank, "World", ranking_rows) if ranking_rows else {"available": False}
+country_rank = country_ranking(selected_for_rank, ranking_rows) if ranking_rows else {"available": False}
+
+chat_context["rankings"] = {
+    "india_position": local_rank.get("position"),
+    "india_total": local_rank.get("total"),
+    "india_cleanest": (local_rank.get("cleanest") or {}).get("name"),
+    "india_dirtiest": (local_rank.get("dirtiest") or {}).get("name"),
+    "world_position": world_rank.get("position"),
+    "world_total": world_rank.get("total"),
+    "world_cleanest": (world_rank.get("cleanest") or {}).get("name"),
+    "world_dirtiest": (world_rank.get("dirtiest") or {}).get("name"),
+    "country_position": country_rank.get("position"),
+    "country_total": country_rank.get("total"),
+    "is_sample": rank_sample,
+}
 
 st.html(
     f"""
