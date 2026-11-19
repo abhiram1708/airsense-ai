@@ -1123,7 +1123,44 @@
     }
   }
 
+  const HEATMAP_CACHE_KEY = "airsense-heatmap-v1";
+  const HEATMAP_TTL = 15 * 60 * 1000;
+
+  function applyHeatmapSamples(samples) {
+    samples.forEach((sample, index) => {
+      const reading = sample && sample.current;
+      const place = places[index];
+      if (!place || !reading || !Number.isFinite(Number(reading.us_aqi))) return;
+      place.aqi = Number(reading.us_aqi);
+      place.pm25 = number(reading.pm2_5);
+      place.pollutants = {};
+      for (const spec of POLLUTANTS) place.pollutants[spec.key] = number(reading[spec.key]);
+      place.source = "Live Open-Meteo city sample";
+      place.updated = reading.time ? `Updated ${String(reading.time).replace("T", " · ")}` : "Current provider reading";
+      place.estimate = false;
+    });
+    buildField();
+    if (active) describe(active);
+  }
+
+  function cachedHeatmap() {
+    try {
+      const cached = JSON.parse(window.localStorage.getItem(HEATMAP_CACHE_KEY) || "null");
+      if (cached && Array.isArray(cached.samples) && Date.now() - Number(cached.at) < HEATMAP_TTL) {
+        return cached.samples;
+      }
+    } catch (_) {
+      // Storage can be unavailable in private or embedded contexts.
+    }
+    return null;
+  }
+
   async function loadHeatmap() {
+    const cached = cachedHeatmap();
+    if (cached) {
+      applyHeatmapSamples(cached);
+      return;
+    }
     try {
       const query = new URLSearchParams({
         latitude: places.map(place => place.latitude).join(","),
@@ -1135,20 +1172,12 @@
       if (!response.ok) throw new Error(`Provider returned ${response.status}`);
       const payload = await response.json();
       const samples = Array.isArray(payload) ? payload : [payload];
-      samples.forEach((sample, index) => {
-        const reading = sample && sample.current;
-        const place = places[index];
-        if (!place || !reading || !Number.isFinite(Number(reading.us_aqi))) return;
-        place.aqi = Number(reading.us_aqi);
-        place.pm25 = number(reading.pm2_5);
-        place.pollutants = {};
-        for (const spec of POLLUTANTS) place.pollutants[spec.key] = number(reading[spec.key]);
-        place.source = "Live Open-Meteo city sample";
-        place.updated = reading.time ? `Updated ${String(reading.time).replace("T", " · ")}` : "Current provider reading";
-        place.estimate = false;
-      });
-      buildField();
-      if (active) describe(active);
+      applyHeatmapSamples(samples);
+      try {
+        window.localStorage.setItem(HEATMAP_CACHE_KEY, JSON.stringify({ at: Date.now(), samples }));
+      } catch (_) {
+        // Caching is a nicety; the live sample still works without it.
+      }
     } catch (_) {
       // Keep the labelled interpolated field when the provider is unreachable.
     }

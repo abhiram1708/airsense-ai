@@ -44,6 +44,19 @@ def _place(context):
     return f"{name}, {country}" if country and country != name else name
 
 
+def _city(context):
+    return context.get("location") or "this city"
+
+
+def _ordinal(value):
+    number = int(round(float(value)))
+    if 10 <= number % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
+    return f"{number}{suffix}"
+
+
 def _current_line(context):
     aqi = _number(context.get("current_aqi"))
     if aqi is None:
@@ -61,9 +74,9 @@ def _fmt(value, unit="µg/m³"):
     return f"{number:.1f}".rstrip("0").rstrip(".") + f" {unit}"
 
 
-def _with_reading(context, key, unit="µg/m³", prefix=" Right now"):
+def _with_reading(context, key, unit="µg/m³", prefix=" Right now", verb="it reads"):
     value = _fmt(_reading(context, key), unit)
-    return f"{prefix} it reads {value} at {_place(context)}." if value else ""
+    return f"{prefix} {verb} {value} at {_place(context)}." if value else ""
 
 
 def _aqi_advice(aqi):
@@ -80,11 +93,122 @@ def _aqi_advice(aqi):
     return "Treat this as a stay-in day where possible: keep windows shut, filter indoor air if you can, and avoid outdoor exercise."
 
 
+def _forecast_answer(context):
+    forecast = context.get("forecast") or {}
+    place = _place(context)
+    peak = _number(forecast.get("next_24h_peak_aqi"))
+    peak_time = forecast.get("next_24h_peak_time")
+    window = forecast.get("cleanest_window_next_12h")
+    window_aqi = _number(forecast.get("cleanest_window_aqi"))
+    tomorrow = _number(forecast.get("tomorrow_peak_aqi"))
+    if peak is None and tomorrow is None and not window:
+        return f"I do not have a forward forecast for {place} right now."
+
+    parts = []
+    if peak is not None:
+        timing = f" around {peak_time} local" if peak_time else ""
+        parts.append(f"Over the next 24 hours the model peaks at {peak:.0f}{timing}.")
+    if window:
+        about = f", around AQI {window_aqi:.0f}" if window_aqi is not None else ""
+        parts.append(f"The cleanest three-hour stretch is {window}{about}.")
+    if tomorrow is not None and (peak is None or abs(tomorrow - peak) >= 2):
+        parts.append(f"Tomorrow's peak is forecast at {tomorrow:.0f}.")
+    change_24 = _number((context.get("history") or {}).get("change_24h_percent"))
+    if change_24 is not None:
+        if abs(change_24) < 5:
+            parts.append("For context, the last 24 hours were broadly steady against the day before.")
+        else:
+            direction = "above" if change_24 > 0 else "below"
+            parts.append(f"For context, the last 24 hours averaged {abs(change_24):.0f}% {direction} the day before.")
+    parts.append("Forecasts are model guidance rather than promises, so re-check before a hard outdoor session.")
+    return " ".join(parts)
+
+
+def _ranking_answer(context):
+    rankings = context.get("rankings") or {}
+    place = _place(context)
+    india_pos = _number(rankings.get("india_position"))
+    india_total = _number(rankings.get("india_total"))
+    world_pos = _number(rankings.get("world_position"))
+    world_total = _number(rankings.get("world_total"))
+    india_cleanest = rankings.get("india_cleanest")
+    india_dirtiest = rankings.get("india_dirtiest")
+    world_cleanest = rankings.get("world_cleanest")
+    world_dirtiest = rankings.get("world_dirtiest")
+
+    if india_pos is None and world_pos is None:
+        return "The comparison boards are not available for this place right now."
+
+    parts = []
+    city_name = _city(context)
+    if india_pos and india_total:
+        parts.append(f"In the live Indian board, {city_name} ranks {_ordinal(india_pos)} cleanest of {int(india_total)} cities.")
+    if world_pos and world_total:
+        parts.append(f"Across the world board it is {_ordinal(world_pos)} cleanest of {int(world_total)} cities.")
+    if india_pos and india_cleanest and india_dirtiest:
+        parts.append(f"Today's cleanest Indian city in the set is {india_cleanest}; the highest reading is {india_dirtiest}.")
+    elif world_pos and world_cleanest and world_dirtiest:
+        parts.append(f"Today's cleanest city in the world board is {world_cleanest}; the highest is {world_dirtiest}.")
+    parts.append("All boards use the same hour of model data, so they are directly comparable but still estimates.")
+    return " ".join(parts)
+
+
+def _history_answer(context):
+    history = context.get("history") or {}
+    place = _place(context)
+    mean = _number(history.get("last_24h_mean"))
+    change_24 = _number(history.get("change_24h_percent"))
+    change_7 = _number(history.get("change_7d_percent"))
+    change_30 = _number(history.get("change_30d_percent"))
+    if mean is None and change_24 is None and change_7 is None:
+        return f"I do not have historical reanalysis for {place} right now."
+
+    parts = []
+    if mean is not None:
+        parts.append(f"Over the past 24 hours {place} averaged US AQI {mean:.0f}.")
+    if change_24 is not None:
+        direction = "higher" if change_24 > 0 else "lower" if change_24 < 0 else "unchanged"
+        parts.append(f"That is {abs(change_24):.0f}% {direction} than the previous day." if change_24 else "That is essentially unchanged from the previous day.")
+    if change_7 is not None:
+        direction = "above" if change_7 > 0 else "below"
+        parts.append(f"Against the previous week it is {abs(change_7):.0f}% {direction}.")
+    if change_30 is not None:
+        direction = "above" if change_30 > 0 else "below"
+        parts.append(f"Against the previous month it is {abs(change_30):.0f}% {direction}.")
+    parts.append("These are reanalysis estimates for this point, useful for pattern-finding rather than regulatory reporting.")
+    return " ".join(parts)
+
+
+def _window_hint(context):
+    forecast = context.get("forecast") or {}
+    window = forecast.get("cleanest_window_next_12h")
+    window_aqi = _number(forecast.get("cleanest_window_aqi"))
+    if not window:
+        return ""
+    about = f" (about AQI {window_aqi:.0f})" if window_aqi is not None else ""
+    return f" If you can choose, the cleanest stretch in the next twelve hours is {window}{about}."
+
+
 # ---------------------------------------------------------------------------
 # Knowledge base
 # ---------------------------------------------------------------------------
 
 TOPICS = [
+    {
+        "id": "forecast",
+        "keys": ["tomorrow", "forecast", "next few days", "best time", "best window", "cleanest time", "when is", "what time", "good time", "when should", "later today", "this afternoon", "this evening", "plan ahead", "get better", "clear up"],
+        "answer": lambda c: _forecast_answer(c),
+    },
+    {
+        "id": "ranking",
+        "keys": ["rank", "ranking", "compare", "cleanest city", "dirtiest", "other cities", "around the world", "how does", "better than"],
+        "answer": lambda c: _ranking_answer(c),
+    },
+    {
+        "id": "history",
+        "keys": ["trend", "last week", "past week", "history", "historical", "last 24 hours", "been rising", "getting worse", "over the past", "yesterday"],
+        "answer": lambda c: _history_answer(c),
+    },
     {
         "id": "greeting",
         "keys": ["hello", "hi ", "hey", "good morning", "good evening", "who are you", "what can you do", "help me"],
@@ -169,9 +293,10 @@ TOPICS = [
     {
         "id": "exercise",
         "keys": ["run", "running", "jog", "cycle", "exercise", "workout", "walk", "outside", "safe to"],
-        "answer": lambda c: _aqi_advice(_number(c.get("current_aqi")))
+        "answer": lambda c: _current_line(c) + " " + _aqi_advice(_number(c.get("current_aqi")))
         + " Hard effort multiplies the dose: ventilation can rise from roughly 6 L/min at rest to 40–50 L/min while running, so the same air delivers several times more particles."
-        + _with_reading(c, "pm2_5", prefix=" Today PM₂.₅ is"),
+        + _with_reading(c, "pm2_5", prefix=" Today", verb="PM₂.₅ reads")
+        + _window_hint(c),
     },
     {
         "id": "indoor",
@@ -270,14 +395,6 @@ def answer_simple_question(prompt: str, context: dict) -> str:
         return "Ask me about today's reading, a specific pollutant, or what to do with your afternoon outdoors."
 
     aqi = _number(context.get("current_aqi"))
-
-    # Live, place-specific variants first — they are the reason people open the chat.
-    if any(k in question for k in ("today", "right now", "currently", "current")):
-        if any(k in question for k in ("run", "walk", "cycle", "exercise", "outside", "safe")):
-            return (
-                f"{_current_line(context)} {_aqi_advice(aqi)}"
-                + _with_reading(context, "pm2_5", prefix=" PM₂.₅ is")
-            )
 
     best, best_score = None, 0
     for topic in TOPICS:

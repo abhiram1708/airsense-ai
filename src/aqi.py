@@ -186,6 +186,99 @@ def us_aqi_from_pm25(value) -> int | None:
     return 500
 
 
+# Indicative per-pollutant sub-indices. EPA breakpoints are defined in ppb
+# (O3, NO2, SO2) and ppm (CO); Open-Meteo reports µg/m³, so concentrations are
+# converted at 25 °C before the breakpoint lookup. These are for comparison
+# and colour coding only — the provider's overall AQI remains authoritative.
+POLLUTANT_BREAKPOINTS = {
+    "pm10": [
+        (0, 54, 0, 50), (55, 154, 51, 100), (155, 254, 101, 150),
+        (255, 354, 151, 200), (355, 424, 201, 300), (425, 504, 301, 400),
+        (505, 604, 401, 500),
+    ],
+    "ozone": [
+        (0, 54, 0, 50), (55, 70, 51, 100), (71, 85, 101, 150),
+        (86, 105, 151, 200), (106, 200, 201, 300),
+    ],
+    "nitrogen_dioxide": [
+        (0, 53, 0, 50), (54, 100, 51, 100), (101, 360, 101, 150),
+        (361, 649, 151, 200), (650, 1249, 201, 300), (1250, 1649, 301, 400),
+        (1650, 2049, 401, 500),
+    ],
+    "sulphur_dioxide": [
+        (0, 35, 0, 50), (36, 75, 51, 100), (76, 185, 101, 150),
+        (186, 304, 151, 200), (305, 604, 201, 300), (605, 804, 301, 400),
+        (805, 1004, 401, 500),
+    ],
+    "carbon_monoxide": [
+        (0, 4.4, 0, 50), (4.5, 9.4, 51, 100), (9.5, 12.4, 101, 150),
+        (12.5, 15.4, 151, 200), (15.5, 30.4, 201, 300), (30.5, 40.4, 301, 400),
+        (40.5, 50.4, 401, 500),
+    ],
+}
+
+# µg/m³ → ppb (or ppm for CO) at 25 °C.
+TO_PPB = {
+    "ozone": 24.45 / 48.00,
+    "nitrogen_dioxide": 24.45 / 46.0055,
+    "sulphur_dioxide": 24.45 / 64.066,
+    "carbon_monoxide": 24.45 / (28.010 * 1000.0),
+}
+
+POLLUTANT_LABELS = {
+    "pm2_5": "PM₂.₅",
+    "pm10": "PM₁₀",
+    "nitrogen_dioxide": "NO₂",
+    "ozone": "O₃",
+    "sulphur_dioxide": "SO₂",
+    "carbon_monoxide": "CO",
+}
+
+
+def _breakpoint_index(value: float, table) -> int | None:
+    for c_low, c_high, i_low, i_high in table:
+        if value <= c_high:
+            spanned = i_low + (i_high - i_low) * (value - c_low) / (c_high - c_low)
+            return int(round(max(0.0, min(500.0, spanned))))
+    return 500
+
+
+def pollutant_subindex(key: str, value) -> int | None:
+    """Indicative US AQI sub-index for one pollutant concentration."""
+    if is_missing(value):
+        return None
+    concentration = max(0.0, float(value))
+    if key == "pm2_5":
+        return us_aqi_from_pm25(concentration)
+    if key == "pm10":
+        return _breakpoint_index(concentration, POLLUTANT_BREAKPOINTS["pm10"])
+    factor = TO_PPB.get(key)
+    table = POLLUTANT_BREAKPOINTS.get(key)
+    if factor is None or table is None:
+        return None
+    return _breakpoint_index(concentration * factor, table)
+
+
+def pollutant_contributions(values: dict) -> list[dict]:
+    """Per-pollutant sub-indices, largest first, with their category band."""
+    rows = []
+    for key, label in POLLUTANT_LABELS.items():
+        index = pollutant_subindex(key, values.get(key))
+        if index is None:
+            continue
+        rows.append(
+            {
+                "key": key,
+                "label": label,
+                "value": float(values[key]),
+                "index": index,
+                "band": aqi_band(index),
+            }
+        )
+    rows.sort(key=lambda row: row["index"], reverse=True)
+    return rows
+
+
 def aqi_trend(hourly: pd.DataFrame, reference_time=None) -> dict:
     """Compare the latest 24 hours with the preceding 24 hours."""
     if hourly is None or hourly.empty or "us_aqi" not in hourly.columns:
@@ -291,7 +384,7 @@ def daily_heatmap(hourly: pd.DataFrame, reference_time=None, days: int = 7) -> p
         reference = pd.to_datetime(reference_time)
     else:
         reference = frame["time"].max()
-    start = (reference - timedelta(days=days)).floor("D")
+    start = (reference - timedelta(days=max(1, days - 1))).floor("D")
     frame = frame[(frame["time"] >= start) & (frame["time"] <= reference)]
     frame = frame.dropna(subset=["us_aqi"]).sort_values("time")
     if frame.empty:
