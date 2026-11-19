@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 import textwrap
 from pathlib import Path
 
@@ -17,29 +18,57 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from src.aqi import (
-    ACTIVITIES,
-    aqi_band,
-    aqi_trend,
-    best_windows,
-    daily_heatmap,
-    daily_summary,
-    dominant_pollutant,
-    exposure_stats,
-    forecast_frame,
-    format_time,
-    format_window,
-    is_missing,
-    pollutant_contributions,
-    us_aqi_from_pm25,
-    who_comparisons,
-)
-from src.air_quality import fetch_air_quality, search_locations
-from src.charts import aqi_chart, chart_legend, day_outlook_html
-from src.chat import answer_simple_question, ask_hosted_model, hosted_configured
-from src.demo import demo_payload
-from src.design import SITE_CSS
-from src.rankings import city_ranking, country_ranking, fetch_ranked_cities, sample_rankings
+# Streamlit Community Cloud mounts the repository under a directory literally
+# named "src" (/mount/src/airsense-ai). If the host puts that mount root on
+# sys.path, `import src.aqi` can resolve to the mount root instead of the
+# app's own package. Put the app directory first so ./src always wins.
+APP_DIR = Path(__file__).resolve().parent
+if str(APP_DIR) not in sys.path:
+    sys.path.insert(0, str(APP_DIR))
+
+# Drop a previously imported "src" that points somewhere other than this
+# repository (for example the /mount/src parent directory).
+_loaded_src = sys.modules.get("src")
+if _loaded_src is not None:
+    _loaded_file = getattr(_loaded_src, "__file__", None)
+    _in_app = bool(_loaded_file) and (APP_DIR / "src") in Path(_loaded_file).resolve().parents
+    if not _in_app:
+        for _name in [n for n in list(sys.modules) if n == "src" or n.startswith("src.")]:
+            del sys.modules[_name]
+
+try:
+    from src.aqi import (
+        ACTIVITIES,
+        aqi_band,
+        aqi_trend,
+        best_windows,
+        daily_heatmap,
+        daily_summary,
+        dominant_pollutant,
+        exposure_stats,
+        forecast_frame,
+        format_time,
+        format_window,
+        is_missing,
+        pollutant_contributions,
+        us_aqi_from_pm25,
+        who_comparisons,
+    )
+    from src.air_quality import fetch_air_quality, search_locations
+    from src.charts import aqi_chart, chart_legend, day_outlook_html
+    from src.chat import answer_simple_question, ask_hosted_model, hosted_configured
+    from src.demo import demo_payload
+    from src.design import SITE_CSS
+    from src.rankings import city_ranking, country_ranking, fetch_ranked_cities, sample_rankings
+except Exception as exc:
+    # Uncaught import errors are redacted on Streamlit Community Cloud. Show
+    # the real cause so a deployment issue can be diagnosed from the page.
+    st.error(
+        "AirSense could not load its analysis modules. "
+        f"{type(exc).__name__}: {exc} "
+        f"(app directory: {APP_DIR})"
+    )
+    st.stop()
 
 # ---------------------------------------------------------------------------
 # Page
