@@ -13,7 +13,7 @@ def search_locations(name: str, count: int = 8) -> list[dict]:
     response = requests.get(
         GEOCODING_URL,
         params={"name": query, "count": count, "language": "en", "format": "json"},
-        timeout=15,
+        timeout=(4, 8),
     )
     response.raise_for_status()
     payload = response.json()
