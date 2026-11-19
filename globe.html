@@ -4,11 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:wght@400..600&display=swap');
   :root {
     color-scheme: light;
     --paper: #ffffff;
     --wash: #f4faf6;
-    --ink: #10241a;
+    --ink: #101f18;
     --ink-soft: #2d4638;
     --muted: #5f7568;
     --faint: #8ba295;
@@ -21,7 +22,7 @@
   }
   * { box-sizing: border-box; }
   html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
-  body { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); }
+  body { font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
   #globe-shell {
     position: relative;
     width: 100%;
@@ -62,42 +63,11 @@
   #globe-canvas:focus-visible { outline: 2px solid var(--green); outline-offset: -8px; border-radius: 26px; }
   #globe-canvas.dragging { cursor: grabbing; }
   .chrome { position: absolute; z-index: 4; pointer-events: none; }
-  .topline {
-    top: 20px;
-    left: clamp(16px, 3vw, 34px);
-    right: clamp(16px, 3vw, 34px);
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 18px;
-  }
-  .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 7px;
-    color: var(--green);
-    font: 600 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    letter-spacing: .18em;
-    text-transform: uppercase;
-  }
-  .eyebrow::before { content: ""; width: 22px; height: 1px; background: currentColor; opacity: .6; }
-  h1 { margin: 0; color: var(--ink); font-family: Georgia, "Times New Roman", serif; font-size: clamp(23px, 2.5vw, 34px); font-weight: 400; letter-spacing: -.04em; }
-  h1 em { color: var(--green); font-weight: 400; }
-  .instructions {
-    max-width: 216px;
-    padding-top: 3px;
-    color: var(--muted);
-    font: 500 9px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
-    letter-spacing: .07em;
-    text-align: right;
-    text-transform: uppercase;
-  }
   .reading-card {
-    top: 100px;
+    top: 18px;
     right: clamp(16px, 3vw, 30px);
     width: 264px;
-    max-height: calc(100% - 190px);
+    max-height: calc(100% - 96px);
     display: flex;
     flex-direction: column;
     padding: 14px 15px 12px;
@@ -174,7 +144,7 @@
   .place-picker:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(31, 122, 79, .12); }
   .place-picker option { color: var(--ink); background: #ffffff; }
   .bottomline {
-    bottom: 18px;
+    bottom: 16px;
     left: clamp(16px, 3vw, 34px);
     right: clamp(16px, 3vw, 34px);
     display: flex;
@@ -197,8 +167,8 @@
     border: 1px solid var(--line);
     border-radius: 999px;
     background: rgba(255, 255, 255, .86);
-    font: 600 8px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-    letter-spacing: .07em;
+    font: 500 11px/1 "Instrument Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: .01em;
     cursor: pointer;
     transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease;
   }
@@ -231,16 +201,11 @@
   /* ------------------------------------------------------------- tablet */
   @media (max-width: 900px) {
     .reading-card { width: 240px; }
-    .instructions { max-width: 170px; }
   }
 
   /* ------------------------------------------------------------- mobile */
   @media (max-width: 720px) {
     #globe-shell { min-height: 0; border-radius: 22px; }
-    .topline { top: 14px; }
-    .eyebrow { font-size: 8px; letter-spacing: .14em; margin-bottom: 5px; }
-    h1 { font-size: 22px; }
-    .instructions { display: none; }
     .reading-card {
       top: auto;
       left: 8px;
@@ -275,7 +240,7 @@
     .place-picker { margin-top: 6px; }
     .bottomline {
       bottom: auto;
-      top: 62px;
+      top: 14px;
       left: auto;
       right: 12px;
       flex-direction: column;
@@ -284,11 +249,10 @@
     }
     .legend { display: none; }
     .controls { gap: 5px; }
-    .control-button { height: 28px; padding: 0 9px; font-size: 7.5px; background: rgba(255, 255, 255, .94); }
+    .control-button { height: 28px; padding: 0 9px; font-size: 10px; background: rgba(255, 255, 255, .94); }
   }
 
   @media (max-width: 420px) {
-    h1 { font-size: 20px; }
     .reading-card { max-height: 46%; }
     .reading-head { padding-right: 84px; }
     .aqi-value { font-size: 26px; }
@@ -302,15 +266,8 @@
 </style>
 </head>
 <body>
-<section id="globe-shell" aria-labelledby="globe-title">
+<section id="globe-shell" aria-label="Interactive global air-quality globe">
   <canvas id="globe-canvas" tabindex="0" aria-label="Interactive global air-quality globe. Drag to rotate, tap anywhere for live AQI and pollutants, or use arrow keys to rotate."></canvas>
-  <div class="chrome topline">
-    <div>
-      <div class="eyebrow">Live AQI field · global surface</div>
-      <h1 id="globe-title">The air, <em>everywhere.</em></h1>
-    </div>
-    <div class="instructions">Drag to orbit · scroll to zoom<br>Tap any point for live AQI + pollutants</div>
-  </div>
   <aside class="chrome reading-card" id="reading-card" aria-live="polite" aria-label="Selected place air-quality reading">
     <div class="sheet-grip" aria-hidden="true"></div>
     <div class="reading-head">
@@ -693,9 +650,10 @@
           const lonDeg = mod(lon * 180 / Math.PI + 540, 360) - 180;
           const value = fieldAt(latDeg, lonDeg);
           if (value > localMax) localMax = value;
-          heat = heatRGB(value);
-          heatStrength = clamp((value - 28) / 172, 0, 1);
-          const alpha = (0.04 + 0.46 * Math.pow(heatStrength, 1.45)) * (oceanSurface ? 0.66 : 1);
+          const mapped = Math.min(value, 220);
+          heat = heatRGB(mapped);
+          heatStrength = clamp((mapped - 26) / 174, 0, 1);
+          const alpha = (0.03 + 0.4 * Math.pow(heatStrength, 1.55)) * (oceanSurface ? 0.6 : 1);
           const luminance = clamp((r * 0.3 + g * 0.59 + bl * 0.11) / 255, 0, 1);
           const tint = 1.02 + 0.3 * luminance;
           r = r * (1 - alpha) + heat[0] * tint * alpha;
@@ -716,8 +674,8 @@
         const haze = Math.pow(1 - nz, 3.1) * 58;
         r += haze * 0.50; g += haze * 0.76; bl += haze * 0.68;
 
-        if (heat && heatStrength > 0.2) {
-          const glow = (heatStrength - 0.2) * 0.3;
+        if (heat && heatStrength > 0.24) {
+          const glow = (heatStrength - 0.24) * 0.18;
           r += heat[0] * glow;
           g += heat[1] * glow;
           bl += heat[2] * glow;
